@@ -1,0 +1,34 @@
+name: CI tests
+on:
+  - push
+  - pull_request
+
+jobs:
+  pre-commit:
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - 1.16.x
+        os:
+          - ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go }}
+
+    - name: Setup dependencies
+      run: |
+        sudo apt install libefivar-dev libefiboot-dev python3-pip golint
+        curl https://pre-commit.com/install-local.py | python3 -
+
+    - name: Run pre-commit
+      run: |
+        go get .
+        ~/bin/pre-commit run -a
+
