@@ -42,17 +42,3 @@ func GenerateFileDevicePath(filepath string, options uint32) []byte {
 		C.uint32_t(options))
 	return buf
 }
-
-type guid = *C.efi_guid_t
-
-// GetNextVariable returns the next variable based on the passed arguments.
-// If it returns true, the variables have all been iterated over.
-func GetNextVariable() (bool, guid, string) {
-	var guid *C.efi_guid_t
-	var name *C.char
-	if C.efi_get_next_variable_name(&guid, &name) != 0 {
-		return true, guid, C.GoString(name)
-	}
-
-	return false, nil, ""
-}
