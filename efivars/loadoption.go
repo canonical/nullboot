@@ -10,15 +10,24 @@ package efivars
 */
 import "C"
 import "unsafe"
+import "errors"
 
 // LoadOption represents an EFI load option.
 type LoadOption struct {
 	data []byte
 }
 
-// NewLoadOptionFromVariableUnsafe reinterprets the specified slice as a load option.
-func NewLoadOptionFromVariableUnsafe(variable []byte) LoadOption {
-	return LoadOption{variable}
+// NewLoadOptionFromVariable reinterprets the specified slice as a load option.
+func NewLoadOptionFromVariable(variable []byte) (LoadOption, error) {
+	if variable == nil {
+		panic("nil value")
+	}
+	clo := (*C.efi_load_option)(unsafe.Pointer(&variable[0]))
+	if len(variable) == 0 || C.efi_loadopt_is_valid(clo, C.size_t(len(variable))) == 0 {
+		return LoadOption{}, errors.New("Invalid load option")
+	}
+
+	return LoadOption{variable}, nil
 }
 
 // Desc returns the description/label of a load option
