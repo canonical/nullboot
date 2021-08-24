@@ -10,9 +10,22 @@ package efivars
 */
 import "C"
 import "unsafe"
+import "fmt"
 
 // GUID of a variable
 type GUID = C.efi_guid_t
+
+// NewGUIDFromString returns a new GUID based on the passed string
+func NewGUIDFromString(guidStr string) (GUID, error) {
+	var guid C.efi_guid_t
+	if C.efi_str_to_guid(C.CString(guidStr), &guid) != 0 {
+		return GUID{}, fmt.Errorf("Invalid GUID: %s", guidStr)
+	}
+	return guid, nil
+}
+
+// GUIDGlobal is the global UEFI GUID
+var GUIDGlobal, _ = NewGUIDFromString("8be4df61-93ca-11d2-aa0d-00e098032b8c")
 
 // GetNextVariable returns the next variable based on the passed arguments.
 // If it returns true, the variables have all been iterated over.
