@@ -12,16 +12,18 @@ import "C"
 import "unsafe"
 
 // LoadOption represents an EFI load option.
-type LoadOption C.efi_load_option
+type LoadOption struct {
+	data []byte
+}
 
 // NewLoadOptionFromVariableUnsafe reinterprets the specified slice as a load option.
-func NewLoadOptionFromVariableUnsafe(variable []byte) *LoadOption {
-	return (*LoadOption)(unsafe.Pointer(&variable[0]))
+func NewLoadOptionFromVariableUnsafe(variable []byte) LoadOption {
+	return LoadOption{variable}
 }
 
 // Desc returns the description/label of a load option
 func (lo *LoadOption) Desc() string {
-	clo := (*C.efi_load_option)(lo)
-	desc := C.efi_loadopt_desc(clo, -1)
+	clo := (*C.efi_load_option)(unsafe.Pointer(&lo.data[0]))
+	desc := C.efi_loadopt_desc(clo, C.ssize_t(len(lo.data)))
 	return C.GoString((*C.char)(unsafe.Pointer(desc)))
 }
