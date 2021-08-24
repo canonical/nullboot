@@ -11,11 +11,12 @@ package efivars
 import "C"
 import "unsafe"
 
-type guid = C.efi_guid_t
+// GUID of a variable
+type GUID = C.efi_guid_t
 
 // GetNextVariable returns the next variable based on the passed arguments.
 // If it returns true, the variables have all been iterated over.
-func GetNextVariable() (bool, *guid, string) {
+func GetNextVariable() (bool, *GUID, string) {
 	var guid *C.efi_guid_t
 	var name *C.char
 	if C.efi_get_next_variable_name(&guid, &name) != 0 {
@@ -32,7 +33,7 @@ func VariablesSupported() bool {
 
 // GetVariable retrieves the content of the specified variable.
 // It returns the content and the attributes
-func GetVariable(guid guid, name string) (data []byte, attrs uint32) {
+func GetVariable(guid GUID, name string) (data []byte, attrs uint32) {
 	var size C.size_t
 	var attributes C.uint32_t
 	var rawData *C.uchar
