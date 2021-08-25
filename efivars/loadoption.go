@@ -14,7 +14,7 @@ import "errors"
 
 // LoadOption represents an EFI load option.
 type LoadOption struct {
-	data []byte
+	Data []byte
 }
 
 // NewLoadOptionFromVariable reinterprets the specified slice as a load option.
@@ -30,9 +30,46 @@ func NewLoadOptionFromVariable(variable []byte) (LoadOption, error) {
 	return LoadOption{variable}, nil
 }
 
+// NewLoadOption binds efi_loadopt_create() in a Go-style fashion, it creates a load option.
+// The returned load option's data can be set as a Boot variable.
+func NewLoadOption(attributes uint32, dp DevicePath, desc string, optionalData []byte) (LoadOption, error) {
+	var data []byte
+
+	needed := C.efi_loadopt_create(
+		nil,
+		0,
+		C.uint32_t(attributes),
+		(C.efidp)(unsafe.Pointer(&dp[0])),
+		C.ssize_t(len(dp)),
+		(*C.uchar)(unsafe.Pointer(C.CString(desc))),
+		(*C.uchar)(&optionalData[0]),
+		C.size_t(len(optionalData)))
+
+	if needed < 0 {
+		return LoadOption{}, errors.New("Error occured in efi_loadopt_create sizing call")
+	}
+
+	data = make([]byte, needed)
+
+	if C.efi_loadopt_create(
+		(*C.uchar)(&data[0]),
+		C.ssize_t(len(data)),
+		C.uint32_t(attributes),
+		(C.efidp)(unsafe.Pointer(&dp[0])),
+		C.ssize_t(len(dp)),
+		(*C.uchar)(unsafe.Pointer(C.CString(desc))),
+		(*C.uchar)(&optionalData[0]),
+		C.size_t(len(optionalData))) != needed {
+		return LoadOption{}, errors.New("Error occured in efi_loadopt_create final call")
+
+	}
+
+	return NewLoadOptionFromVariable(data)
+}
+
 // Desc returns the description/label of a load option
 func (lo *LoadOption) Desc() string {
-	clo := (*C.efi_load_option)(unsafe.Pointer(&lo.data[0]))
-	desc := C.efi_loadopt_desc(clo, C.ssize_t(len(lo.data)))
+	clo := (*C.efi_load_option)(unsafe.Pointer(&lo.Data[0]))
+	desc := C.efi_loadopt_desc(clo, C.ssize_t(len(lo.Data)))
 	return C.GoString((*C.char)(unsafe.Pointer(desc)))
 }
