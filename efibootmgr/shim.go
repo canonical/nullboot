@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/transform"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -19,6 +20,17 @@ type BootEntry struct {
 	Label       string
 	Options     string
 	Description string
+}
+
+// architectureMaps maps from GOARCH to host
+var architectureMap = map[string]string{
+	"arm64": "aa64",
+	"amd64": "x64",
+}
+
+// GetEfiArchitecture returns the EFI architecture for the target system
+func GetEfiArchitecture() string {
+	return architectureMap[runtime.GOARCH]
 }
 
 // WriteShimFallbackToFile opens the specified path in UTF-16LE and then calls WriteShimFallback

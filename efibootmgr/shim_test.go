@@ -6,9 +6,16 @@ package efibootmgr
 
 import (
 	"bytes"
+	"runtime"
 	"testing"
 )
 
+func TestGetEfiArchitecture(t *testing.T) {
+	arch := GetEfiArchitecture()
+	if arch == "" {
+		t.Fatalf("Unknown architecture: '%s'", runtime.GOARCH)
+	}
+}
 func TestWriteShimFallback(t *testing.T) {
 	tests := []struct {
 		label string
