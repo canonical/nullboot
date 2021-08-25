@@ -28,26 +28,36 @@ type BootEntryVariable struct {
 type BootManager struct {
 	entries   map[int]BootEntryVariable // The Boot<number> variables
 	bootOrder []int                     // The BootOrder variable, parsed
+	efivars   EFIVariables              // An implementation of efi variables
 }
 
 // NewBootManagerFromSystem returns a new BootManager object, initialized with the system state.
-func NewBootManagerFromSystem() BootManager {
-	var err error
-	bm := BootManager{make(map[int]BootEntryVariable), nil}
+func NewBootManagerFromSystem() (BootManager, error) {
+	return newBootManagerFromVariables(RealEFIVariables{})
+}
 
-	bootOrderBytes, _ := efivars.GetVariable(efivars.GUIDGlobal, "BootOrder")
+// newBootManagerFromVariables abstraction
+func newBootManagerFromVariables(vars EFIVariables) (BootManager, error) {
+	var err error
+	bm := BootManager{make(map[int]BootEntryVariable), nil, vars}
+
+	if !bm.efivars.VariablesSupported() {
+		return BootManager{}, fmt.Errorf("Variables not supported")
+	}
+
+	bootOrderBytes, _ := bm.efivars.GetVariable(efivars.GUIDGlobal, "BootOrder")
 	bm.bootOrder = make([]int, len(bootOrderBytes)/2)
 	for i := 0; i < len(bootOrderBytes); i += 2 {
 		// FIXME: It's probably not valid to assume little-endian here?
 		bm.bootOrder[i/2] = int(bootOrderBytes[i+1])<<16 + int(bootOrderBytes[i])
 	}
 
-	for _, name := range efivars.GetVariableNames(efivars.GUIDGlobal) {
+	for _, name := range bm.efivars.GetVariableNames(efivars.GUIDGlobal) {
 		var entry BootEntryVariable
 		if parsed, err := fmt.Sscanf(name, "Boot%04X", &entry.BootNumber); len(name) != 8 || parsed != 1 || err != nil {
 			continue
 		}
-		entry.Data, entry.Attributes = efivars.GetVariable(efivars.GUIDGlobal, name)
+		entry.Data, entry.Attributes = bm.efivars.GetVariable(efivars.GUIDGlobal, name)
 		entry.LoadOption, err = efivars.NewLoadOptionFromVariable(entry.Data)
 		if err != nil {
 			log.Printf("Invalid boot entry Boot%04X: %s\n", entry.BootNumber, err)
@@ -56,7 +66,7 @@ func NewBootManagerFromSystem() BootManager {
 		bm.entries[entry.BootNumber] = entry
 	}
 
-	return bm
+	return bm, nil
 }
 
 // NextFreeEntry returns the number of the next free Boot variable.
@@ -79,13 +89,40 @@ func (bm *BootManager) AddEntry(desc string, path string, options []string) (int
 	}
 	variable := fmt.Sprintf("Boot%04X", bootNext)
 
-	// FIXME: AddEntry is a stub
-	log.Printf("Adding boot entry %v", variable)
-
-	// FIXME: Fill in Data, Attributes, and LoadOption that we will store above
-	bm.entries[bootNext] = BootEntryVariable{
-		BootNumber: bootNext,
+	dp, err := bm.efivars.NewDevicePath(path, efivars.BootAbbrevHD)
+	if err != nil {
+		return -1, err
 	}
+
+	optionalData := make([]byte, 0)
+	for _, option := range options {
+		ucs2option, err := efivars.NewLoadOptionArgumentFromUTF8(option)
+		if err != nil {
+			return -1, err
+		}
+		optionalData = append(optionalData, ucs2option...)
+		optionalData = append(optionalData, 0)
+	}
+
+	optionalData = append(optionalData, 0)
+
+	loadoption, err := efivars.NewLoadOption(efivars.LoadOptionActive, dp, desc, optionalData)
+	if err != nil {
+		return -1, err
+	}
+
+	entry := BootEntryVariable{
+		BootNumber: bootNext,
+		Data:       loadoption.Data,
+		Attributes: efivars.VariableNonVolatile | efivars.VariableBootServiceAccess | efivars.VariableRuntimeAccess,
+		LoadOption: loadoption,
+	}
+
+	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, variable, entry.Data, entry.Attributes, 0644); err != nil {
+		return -1, nil
+	}
+
+	bm.entries[bootNext] = entry
 
 	return bootNext, nil
 }
