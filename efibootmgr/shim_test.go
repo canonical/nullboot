@@ -16,6 +16,13 @@ func TestWriteShimFallback(t *testing.T) {
 		want  string
 	}{
 		{"basic", []BootEntry{{"shimx64.efi", "ubuntu", "", "This is the boot entry for ubuntu"}}, "shimx64.efi,ubuntu,,This is the boot entry for ubuntu\n"},
+		{"fwupd", []BootEntry{
+			{"shimx64.efi", "ubuntu", "", "This is the boot entry for ubuntu"},
+			{"shimx64.efi", "Linux-Firmware-Updater", "\\fwupdx64.efi", "This is the boot entry for Linux-Firmware-Updater"},
+		},
+			"shimx64.efi,ubuntu,,This is the boot entry for ubuntu\n" +
+				"shimx64.efi,Linux-Firmware-Updater,\\fwupdx64.efi,This is the boot entry for Linux-Firmware-Updater\n",
+		},
 	}
 
 	for _, tc := range tests {
