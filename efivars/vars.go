@@ -35,16 +35,17 @@ func NewGUIDFromString(guidStr string) (GUID, error) {
 // GUIDGlobal is the global UEFI GUID
 var GUIDGlobal, _ = NewGUIDFromString("8be4df61-93ca-11d2-aa0d-00e098032b8c")
 
-// GetNextVariable returns the next variable based on the passed arguments.
-// If it returns true, the variables have all been iterated over.
-func GetNextVariable() (bool, *GUID, string) {
+// GetVariableNames returns all variable names for the given GUID.
+func GetVariableNames(filterGUID GUID) []string {
+	var out []string
 	var guid *C.efi_guid_t
 	var name *C.char
-	if C.efi_get_next_variable_name(&guid, &name) != 0 {
-		return true, guid, C.GoString(name)
+	for C.efi_get_next_variable_name(&guid, &name) != 0 {
+		if *guid == filterGUID {
+			out = append(out, C.GoString(name))
+		}
 	}
-
-	return false, nil, ""
+	return out
 }
 
 // VariablesSupported returns if variables are supported

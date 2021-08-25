@@ -42,16 +42,12 @@ func NewBootManagerFromSystem() BootManager {
 		bm.bootOrder[i/2] = int(bootOrderBytes[i+1])<<16 + int(bootOrderBytes[i])
 	}
 
-	for ok, guid, name := efivars.GetNextVariable(); ok; ok, guid, name = efivars.GetNextVariable() {
+	for _, name := range efivars.GetVariableNames(efivars.GUIDGlobal) {
 		var entry BootEntryVariable
-		// Boot entries are stored with the global GUID
-		if *guid != efivars.GUIDGlobal {
-			continue
-		}
 		if parsed, err := fmt.Sscanf(name, "Boot%04X", &entry.BootNumber); len(name) != 8 || parsed != 1 || err != nil {
 			continue
 		}
-		entry.Data, entry.Attributes = efivars.GetVariable(*guid, name)
+		entry.Data, entry.Attributes = efivars.GetVariable(efivars.GUIDGlobal, name)
 		entry.LoadOption, err = efivars.NewLoadOptionFromVariable(entry.Data)
 		if err != nil {
 			log.Printf("Invalid boot entry Boot%04X: %s\n", entry.BootNumber, err)
