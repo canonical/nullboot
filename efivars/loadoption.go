@@ -12,6 +12,11 @@ import "C"
 import "unsafe"
 import "errors"
 
+// Constants for LoadOption attributes
+const (
+	LoadOptionActive = 0x00000001
+)
+
 // LoadOption represents an EFI load option.
 type LoadOption struct {
 	Data []byte
@@ -65,6 +70,20 @@ func NewLoadOption(attributes uint32, dp DevicePath, desc string, optionalData [
 	}
 
 	return NewLoadOptionFromVariable(data)
+}
+
+// NewLoadOptionArgumentFromUTF8 converts a UTF-8 string into a UCS-2 encoded argument.
+func NewLoadOptionArgumentFromUTF8(data string) ([]byte, error) {
+	cData := (*C.uchar)(unsafe.Pointer(C.CString(data)))
+	needed := C.efi_loadopt_args_as_ucs2(nil, 0, cData)
+	if needed < 0 {
+		return nil, errors.New("efi_loadopt_args_as_ucs2() returned -1 for string: " + data)
+	}
+	buf := make([]byte, needed)
+	if C.efi_loadopt_args_as_ucs2((*C.uint16_t)(unsafe.Pointer(&buf[0])), C.ssize_t(len(buf)), cData) < 0 {
+		return nil, errors.New("efi_loadopt_args_as_ucs2() returned -1 for string: " + data)
+	}
+	return buf, nil
 }
 
 // Desc returns the description/label of a load option
