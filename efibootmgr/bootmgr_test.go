@@ -15,7 +15,8 @@ func TestBootManager_mocked(t *testing.T) {
 	mockvars := MockEFIVariables{
 		map[efivars.GUID]map[string]mockEFIVariable{
 			efivars.GUIDGlobal: {
-				"Boot0001": {UsbrBootCdrom, 42},
+				"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
+				"Boot0001":  {UsbrBootCdrom, 42},
 			},
 		},
 	}
@@ -28,6 +29,10 @@ func TestBootManager_mocked(t *testing.T) {
 
 	if len(bm.entries) != 1 {
 		t.Fatalf("Could not parse an entry")
+	}
+
+	if want := []int{1, 2, 3}; !reflect.DeepEqual(bm.bootOrder, want) {
+		t.Fatalf("Expected %v, got: %v", want, bm.bootOrder)
 	}
 
 	want := BootEntryVariable{1, UsbrBootCdrom, 42, efivars.LoadOption{Data: UsbrBootCdrom}}
