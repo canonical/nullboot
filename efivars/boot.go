@@ -27,10 +27,13 @@ const (
 	BootOptionIgnorePMBRError = C.EFIBOOT_OPTIONS_IGNORE_PMBR_ERR // Ignore PBMR error
 )
 
-// GenerateFileDevicePath generates a UEFI device file path from a given real file path.
+// DevicePath represents a device path.
+type DevicePath []byte
+
+// NewDevicePath generates a UEFI device file path from a given real file path.
 // It returns it as a slice of bytes which can later be parsed into a DevicePath object.
 //
-func GenerateFileDevicePath(filepath string, options uint32) ([]byte, error) {
+func NewDevicePath(filepath string, options uint32) (DevicePath, error) {
 	// Gather the size we need first
 	size := C.go_efi_generate_file_device_path((*C.uchar)(unsafe.Pointer(nil)),
 		C.ssize_t(0), C.CString(filepath),
