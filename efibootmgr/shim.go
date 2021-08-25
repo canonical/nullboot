@@ -15,10 +15,10 @@ import (
 
 // BootEntry is a boot entry.
 type BootEntry struct {
-	filename    string
-	label       string
-	options     string
-	description string
+	Filename    string
+	Label       string
+	Options     string
+	Description string
 }
 
 // WriteShimFallbackToFile opens the specified path in UTF-16LE and then calls WriteShimFallback
@@ -36,16 +36,16 @@ func WriteShimFallbackToFile(path string, entries []BootEntry) error {
 // The output of this function is unencoded, use a transformed UTF-16 writer.
 func WriteShimFallback(w io.Writer, entries []BootEntry) error {
 	for _, entry := range entries {
-		if strings.Contains(entry.filename, ",") ||
-			strings.Contains(entry.label, ",") ||
-			strings.Contains(entry.options, ",") ||
-			strings.Contains(entry.description, ",") {
-			return fmt.Errorf("entry '%s' contains ',' in one of the attributes, this is not supported", entry.label)
+		if strings.Contains(entry.Filename, ",") ||
+			strings.Contains(entry.Label, ",") ||
+			strings.Contains(entry.Options, ",") ||
+			strings.Contains(entry.Description, ",") {
+			return fmt.Errorf("entry '%s' contains ',' in one of the attributes, this is not supported", entry.Label)
 		}
 
-		_, err := fmt.Fprintf(w, "%s,%s,%s,%s\n", entry.filename, entry.label, entry.options, entry.description)
+		_, err := fmt.Fprintf(w, "%s,%s,%s,%s\n", entry.Filename, entry.Label, entry.Options, entry.Description)
 		if err != nil {
-			return fmt.Errorf("Could not write entry '%s' to file: %w", entry.label, err)
+			return fmt.Errorf("Could not write entry '%s' to file: %w", entry.Label, err)
 		}
 	}
 
