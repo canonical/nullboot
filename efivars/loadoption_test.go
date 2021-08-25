@@ -60,6 +60,30 @@ func TestLoadOptionDesc(t *testing.T) {
 
 	}
 }
+
+func TestLoadOptionPath(t *testing.T) {
+	tests := []struct {
+		label string
+		input []byte
+		want  []byte
+	}{
+		{"USBR Boot CDROM", UsbrBootCdrom, UsbrBootCdrom[38:]},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.label, func(t *testing.T) {
+			lo, _ := NewLoadOptionFromVariable(tc.input)
+			got := lo.Path()
+			if !bytes.Equal(tc.want, got) {
+				t.Fatalf("\n"+
+					"expected: %v\n"+
+					"got:      %v", tc.want, got)
+			}
+		})
+
+	}
+}
+
 func TestNewLoadOptionArgumentFromUTF8(t *testing.T) {
 	tests := []struct {
 		input string

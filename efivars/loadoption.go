@@ -87,8 +87,15 @@ func NewLoadOptionArgumentFromUTF8(data string) ([]byte, error) {
 }
 
 // Desc returns the description/label of a load option
-func (lo *LoadOption) Desc() string {
+func (lo LoadOption) Desc() string {
 	clo := (*C.efi_load_option)(unsafe.Pointer(&lo.Data[0]))
 	desc := C.efi_loadopt_desc(clo, C.ssize_t(len(lo.Data)))
 	return C.GoString((*C.char)(unsafe.Pointer(desc)))
+}
+
+// Path returns the device path.
+func (lo LoadOption) Path() DevicePath {
+	clo := (*C.efi_load_option)(unsafe.Pointer(&lo.Data[0]))
+	dp := C.efi_loadopt_path(clo, C.ssize_t(len(lo.Data)))
+	return C.GoBytes(unsafe.Pointer(dp), C.int(C.efidp_size(dp)))
 }
