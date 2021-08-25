@@ -11,6 +11,14 @@ package efivars
 import "C"
 import "unsafe"
 import "fmt"
+import "os"
+
+// Various attributes for variables
+const (
+	VariableNonVolatile       = C.EFI_VARIABLE_NON_VOLATILE
+	VariableBootServiceAccess = C.EFI_VARIABLE_BOOTSERVICE_ACCESS
+	VariableRuntimeAccess     = C.EFI_VARIABLE_RUNTIME_ACCESS
+)
 
 // GUID of a variable
 type GUID = C.efi_guid_t
@@ -55,4 +63,13 @@ func GetVariable(guid GUID, name string) (data []byte, attrs uint32) {
 	}
 
 	return C.GoBytes(unsafe.Pointer(rawData), C.int(size)), uint32(attributes)
+}
+
+// SetVariable sets the specified variable to the specified data
+func SetVariable(guid GUID, name string, data []byte, attrs uint32, mode os.FileMode) error {
+	if C.efi_set_variable(guid, C.CString(name), (*C.uchar)(&data[0]), C.size_t(len(data)), C.uint32_t(attrs), C.mode_t(mode)) != 0 {
+		return fmt.Errorf("Could not set variable %s", name)
+	}
+
+	return nil
 }
