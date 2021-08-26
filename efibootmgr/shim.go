@@ -9,7 +9,6 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 	"io"
-	"os"
 	"runtime"
 	"strings"
 )
@@ -35,7 +34,7 @@ func GetEfiArchitecture() string {
 
 // WriteShimFallbackToFile opens the specified path in UTF-16LE and then calls WriteShimFallback
 func WriteShimFallbackToFile(path string, entries []BootEntry) error {
-	file, err := os.Create(path)
+	file, err := appFs.Create(path)
 	if err != nil {
 		return fmt.Errorf("could not open %s: %w", path, err)
 	}
