@@ -1,4 +1,4 @@
-module github.com/canonical/bootmgrless
+module github.com/canonical/nullboot
 
 go 1.16
 

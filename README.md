@@ -1,7 +1,7 @@
 A boot manager that isn't
 =========================
 
-bootmgrless is a boot manager for environments that do not need a boot manager.
+nullboot is a boot manager for environments that do not need a boot manager.
 Instead of running a boot manager at boot, it directly manages the UEFI boot
 entries for you.
 

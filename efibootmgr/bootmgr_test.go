@@ -1,4 +1,4 @@
-// This file is part of bootmgrless
+// This file is part of nullboot
 // Copyright 2021 Canonical Ltd.
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -6,7 +6,7 @@ package efibootmgr
 
 import (
 	"bytes"
-	"github.com/canonical/bootmgrless/efivars"
+	"github.com/canonical/nullboot/efivars"
 	"reflect"
 	"testing"
 )

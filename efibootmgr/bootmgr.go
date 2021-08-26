@@ -1,4 +1,4 @@
-// This file is part of bootmgrless
+// This file is part of nullboot
 // Copyright 2021 Canonical Ltd.
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -10,7 +10,7 @@ import (
 	"log"
 )
 
-import "github.com/canonical/bootmgrless/efivars"
+import "github.com/canonical/nullboot/efivars"
 
 const (
 	maxBootEntries = 65535 // Maximum number of boot entries we can hold
