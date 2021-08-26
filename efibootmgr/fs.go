@@ -23,6 +23,8 @@ type FS interface {
 	Open(path string) (io.ReadSeekCloser, error)
 	// ReadDir behaves like os.ReadDir()
 	ReadDir(path string) ([]os.DirEntry, error)
+	// Remove behaves like os.Remove()
+	Remove(path string) error
 }
 
 // realFS implements FS using the os package
@@ -31,6 +33,7 @@ type realFS struct{}
 func (realFS) Create(path string) (io.WriteCloser, error)  { return os.Create(path) }
 func (realFS) Open(path string) (io.ReadSeekCloser, error) { return os.Open(path) }
 func (realFS) ReadDir(path string) ([]os.DirEntry, error)  { return os.ReadDir(path) }
+func (realFS) Remove(path string) error                    { return os.Remove(path) }
 
 // appFs is our default FS
 var appFs FS = realFS{}

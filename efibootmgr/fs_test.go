@@ -17,9 +17,27 @@ type MapFS struct {
 	p afero.Fs
 }
 
+type dirEntry struct {
+	os.FileInfo
+}
+
+func (d dirEntry) Info() (os.FileInfo, error) { return os.FileInfo(d), nil }
+func (d dirEntry) Type() os.FileMode          { return d.Mode().Type() }
+
 func (m MapFS) Create(path string) (io.WriteCloser, error)  { return m.p.Create(path) }
 func (m MapFS) Open(path string) (io.ReadSeekCloser, error) { return m.p.Open(path) }
-func (m MapFS) ReadDir(path string) ([]os.DirEntry, error)  { return nil, nil }
+func (m MapFS) Remove(path string) error                    { return m.p.Remove(path) }
+func (m MapFS) ReadDir(path string) ([]os.DirEntry, error) {
+	var out []os.DirEntry
+	fis, err := afero.ReadDir(m.p, path)
+	if err != nil {
+		return nil, err
+	}
+	for _, fi := range fis {
+		out = append(out, dirEntry{fi})
+	}
+	return out, nil
+}
 
 func TestMaybeUpdateFile_missingSrc(t *testing.T) {
 	memFs := afero.NewMemMapFs()
