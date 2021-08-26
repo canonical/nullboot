@@ -39,7 +39,7 @@ func WriteShimFallbackToFile(path string, entries []BootEntry) error {
 	if err != nil {
 		return fmt.Errorf("could not open %s: %w", path, err)
 	}
-
+	defer file.Close()
 	writer := transform.NewWriter(file, unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder())
 	return WriteShimFallback(writer, entries)
 }
