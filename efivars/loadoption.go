@@ -40,6 +40,11 @@ func NewLoadOptionFromVariable(variable []byte) (LoadOption, error) {
 func NewLoadOption(attributes uint32, dp DevicePath, desc string, optionalData []byte) (LoadOption, error) {
 	var data []byte
 
+	var optionalDataC *C.uchar
+	if len(optionalData) != 0 {
+		optionalDataC = (*C.uchar)(&optionalData[0])
+	}
+
 	needed := C.efi_loadopt_create(
 		nil,
 		0,
@@ -47,7 +52,7 @@ func NewLoadOption(attributes uint32, dp DevicePath, desc string, optionalData [
 		(C.efidp)(unsafe.Pointer(&dp[0])),
 		C.ssize_t(len(dp)),
 		(*C.uchar)(unsafe.Pointer(C.CString(desc))),
-		(*C.uchar)(&optionalData[0]),
+		optionalDataC,
 		C.size_t(len(optionalData)))
 
 	if needed < 0 {
@@ -63,7 +68,7 @@ func NewLoadOption(attributes uint32, dp DevicePath, desc string, optionalData [
 		(C.efidp)(unsafe.Pointer(&dp[0])),
 		C.ssize_t(len(dp)),
 		(*C.uchar)(unsafe.Pointer(C.CString(desc))),
-		(*C.uchar)(&optionalData[0]),
+		optionalDataC,
 		C.size_t(len(optionalData))) != needed {
 		return LoadOption{}, errors.New("Error occured in efi_loadopt_create final call")
 

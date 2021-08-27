@@ -99,8 +99,6 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (in
 	}
 
 	optionalData, err := efivars.NewLoadOptionArgumentFromUTF8(entry.Options)
-	optionalData = append(optionalData, 0)
-
 	if err != nil {
 		return -1, err
 	}
