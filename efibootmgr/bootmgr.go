@@ -82,7 +82,7 @@ func (bm *BootManager) NextFreeEntry() (int, error) {
 
 // AddEntry adds a boot entry to the boot manager.
 // This finds the next free variable and adds a boot entry
-func (bm *BootManager) AddEntry(desc string, path string, options []string) (int, error) {
+func (bm *BootManager) AddEntry(desc string, path string, options string) (int, error) {
 	bootNext, err := bm.NextFreeEntry()
 	if err != nil {
 		return -1, err
@@ -94,17 +94,12 @@ func (bm *BootManager) AddEntry(desc string, path string, options []string) (int
 		return -1, err
 	}
 
-	optionalData := make([]byte, 0)
-	for _, option := range options {
-		ucs2option, err := efivars.NewLoadOptionArgumentFromUTF8(option)
-		if err != nil {
-			return -1, err
-		}
-		optionalData = append(optionalData, ucs2option...)
-		optionalData = append(optionalData, 0)
-	}
-
+	optionalData, err := efivars.NewLoadOptionArgumentFromUTF8(options)
 	optionalData = append(optionalData, 0)
+
+	if err != nil {
+		return -1, err
+	}
 
 	loadoption, err := efivars.NewLoadOption(efivars.LoadOptionActive, dp, desc, optionalData)
 	if err != nil {

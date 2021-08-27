@@ -43,7 +43,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// This creates entry Boot0000
-	got, err := bm.AddEntry("desc", "path", []string{"arg1", "arg2"})
+	got, err := bm.AddEntry("desc", "path", "arg1 arg2")
 	if want := 0; got != want {
 		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}
@@ -70,7 +70,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// This creates entry Boot0002
-	got, err = bm.AddEntry("desc2", "path2", []string{"arg3", "arg4"})
+	got, err = bm.AddEntry("desc2", "path2", "arg3 arg4")
 	if want := 2; got != want {
 		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}
