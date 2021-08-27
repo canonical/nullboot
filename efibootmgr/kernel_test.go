@@ -5,6 +5,7 @@
 package efibootmgr
 
 import (
+	"github.com/canonical/nullboot/efivars"
 	"github.com/spf13/afero"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -32,6 +33,7 @@ func CheckFilesEqual(fs afero.Fs, want string, got string) error {
 	return nil
 
 }
+
 func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
@@ -39,6 +41,16 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("1.0-1-generic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644)
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
+	mockvars := MockEFIVariables{
+		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {
+			"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
+			"Boot0001":  {UsbrBootCdrom, 42}}},
+	}
+	appEFIVars = &mockvars
+
+	// Create an obsolete Boot0000 entry that we want to collect at the end.
+	bm, _ := NewBootManagerFromSystem()
+	bm.FindOrCreateEntry(BootEntry{Filename: "shimx64.efi", Label: "Ubuntu with obsolete kernel", Options: ""})
 
 	km, err := NewKernelManager()
 	if err != nil {
@@ -83,6 +95,24 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	if want != string(data) {
 		t.Errorf("Boot entry mismatch:\nExpected:\n%v\nGot:\n%v", want, string(data))
 	}
+
+	// Validate we have actually written the EFI stuff we want
+	bm, err = NewBootManagerFromSystem()
+	if err != nil {
+		t.Fatalf("Could not create boot manager: %v", err)
+	}
+
+	// So we already had 1 populated with a foreign boot entry, this should be preserved.
+	if !reflect.DeepEqual(bm.bootOrder, []int{2, 3, 1}) {
+		t.Fatalf("Unexpected boot order %v", bm.bootOrder)
+	}
+
+	for i, desc := range map[int]string{2: "Ubuntu with kernel 1.0-12-generic", 3: "Ubuntu with kernel 1.0-1-generic", 1: "USBR BOOT CDROM"} {
+		if bm.entries[i].LoadOption.Desc() != desc {
+			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Desc())
+		}
+
+	}
 }
 
 func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
@@ -93,6 +123,10 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/kernel.efi-1.0-1-generic", []byte("1.0-1-generic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/BOOTX64.CSV", []byte(""), 0644)
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
+	mockvars := MockEFIVariables{
+		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {"BootOrder": {[]byte{}, 123}}},
+	}
+	appEFIVars = &mockvars
 
 	km, err := NewKernelManager()
 	if err != nil {

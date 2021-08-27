@@ -26,6 +26,7 @@ type KernelManager struct {
 	targetKernels []string    // kernels in targetDir
 	bootEntries   []BootEntry // boot entries filled by InstallKernels
 	kernelOptions string      // options to pass to kernel
+	bootManager   BootManager // The EFI boot manager
 }
 
 // NewKernelManager returns a new kernel manager managing kernels in the host system
@@ -55,6 +56,10 @@ func NewKernelManager() (*KernelManager, error) {
 		return nil, err
 	}
 	km.targetKernels, err = km.readKernels(km.targetDir)
+	if err != nil {
+		return nil, err
+	}
+	km.bootManager, err = NewBootManagerFromSystem()
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +170,43 @@ func (km *KernelManager) CommitToBootLoader() error {
 	}
 
 	log.Print("Configuring UEFI boot device selection")
-	// FIXME: Configure BDS
+
+	// This will become the head of the new boot order
+	var ourBootOrder []int
+
+	// Add new entries, find existing ones and build target boot order
+	for _, entry := range km.bootEntries {
+		bootNum, err := km.bootManager.FindOrCreateEntry(entry)
+		if err != nil {
+			return fmt.Errorf("Failure to add boot entry for %s: %w", entry.Label, err)
+		}
+		ourBootOrder = append(ourBootOrder, bootNum)
+	}
+
+	// Delete any obsolete kernels
+	for _, ev := range km.bootManager.entries {
+		if !strings.HasPrefix(ev.LoadOption.Desc(), "Ubuntu ") {
+			continue
+		}
+		isObsolete := true
+		for _, num := range ourBootOrder {
+			if num == ev.BootNumber {
+				isObsolete = false
+			}
+		}
+		if !isObsolete {
+			continue
+		}
+
+		if err := km.bootManager.DeleteEntry(ev.BootNumber); err != nil {
+			log.Printf("Could not delete Boot%04X: %v", ev.BootNumber, err)
+		}
+	}
+
+	// Set the boot order
+	if err := km.bootManager.PrependAndSetBootOrder(ourBootOrder); err != nil {
+		return fmt.Errorf("Could not set boot order: %w", err)
+	}
+
 	return nil
 }

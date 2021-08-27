@@ -79,6 +79,9 @@ func NewLoadOptionArgumentFromUTF8(data string) ([]byte, error) {
 	if needed < 0 {
 		return nil, errors.New("efi_loadopt_args_as_ucs2() returned -1 for string: " + data)
 	}
+	if needed == 0 {
+		return nil, nil
+	}
 	buf := make([]byte, needed)
 	if C.efi_loadopt_args_as_ucs2((*C.uint16_t)(unsafe.Pointer(&buf[0])), C.ssize_t(len(buf)), cData) < 0 {
 		return nil, errors.New("efi_loadopt_args_as_ucs2() returned -1 for string: " + data)
