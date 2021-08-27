@@ -124,7 +124,7 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry) (int, error) {
 	}
 
 	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, variable, entryVar.Data, entryVar.Attributes, 0644); err != nil {
-		return -1, nil
+		return -1, err
 	}
 
 	bm.entries[bootNext] = entryVar
