@@ -21,7 +21,8 @@ func TestBootManager_mocked(t *testing.T) {
 		},
 	}
 
-	bm, err := newBootManagerFromVariables(&mockvars)
+	appEFIVars = &mockvars
+	bm, err := NewBootManagerFromSystem()
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -118,7 +119,8 @@ func TestBootManagerDeleteEntry(t *testing.T) {
 		},
 	}
 
-	bm, err := newBootManagerFromVariables(&mockvars)
+	appEFIVars = &mockvars
+	bm, err := NewBootManagerFromSystem()
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
@@ -153,14 +155,14 @@ func TestBootManagerSetBootOrder(t *testing.T) {
 			},
 		},
 	}
-
-	bm, err := newBootManagerFromVariables(&mockvars)
+	appEFIVars = &mockvars
+	bm, err := NewBootManagerFromSystem()
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
 
 	if err := bm.PrependAndSetBootOrder([]int{2}); err != nil {
-		t.Errorf("Failed to commit boot order: %v", bm.bootOrder)
+		t.Errorf("Failed to commit boot order: %v", err)
 	}
 	if !reflect.DeepEqual(bm.bootOrder, []int{2, 1}) {
 		t.Errorf("Expected boot order to be 2, 1 got %v", bm.bootOrder)
@@ -173,7 +175,8 @@ func TestBootManagerSetBootOrder(t *testing.T) {
 func TestBootManager_unsupported(t *testing.T) {
 	mockvars := NoEFIVariables{}
 
-	_, err := newBootManagerFromVariables(&mockvars)
+	appEFIVars = &mockvars
+	_, err := NewBootManagerFromSystem()
 
 	if err == nil {
 		t.Fatalf("Unexpected success")

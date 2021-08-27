@@ -31,27 +31,18 @@ type BootManager struct {
 	entries        map[int]BootEntryVariable // The Boot<number> variables
 	bootOrder      []int                     // The BootOrder variable, parsed
 	bootOrderAttrs uint32                    // The attributes of BootOrder variable
-	efivars        EFIVariables              // An implementation of efi variables
 }
 
 // NewBootManagerFromSystem returns a new BootManager object, initialized with the system state.
 func NewBootManagerFromSystem() (BootManager, error) {
-	return newBootManagerFromVariables(RealEFIVariables{})
-}
-
-// newBootManagerFromVariables abstraction
-func newBootManagerFromVariables(vars EFIVariables) (BootManager, error) {
 	var err error
-	bm := BootManager{
-		entries: make(map[int]BootEntryVariable),
-		efivars: vars,
-	}
+	bm := BootManager{}
 
-	if !bm.efivars.VariablesSupported() {
+	if !appEFIVars.VariablesSupported() {
 		return BootManager{}, fmt.Errorf("Variables not supported")
 	}
 
-	bootOrderBytes, bootOrderAttrs := bm.efivars.GetVariable(efivars.GUIDGlobal, "BootOrder")
+	bootOrderBytes, bootOrderAttrs := appEFIVars.GetVariable(efivars.GUIDGlobal, "BootOrder")
 	bm.bootOrder = make([]int, len(bootOrderBytes)/2)
 	bm.bootOrderAttrs = bootOrderAttrs
 	for i := 0; i < len(bootOrderBytes); i += 2 {
@@ -59,12 +50,13 @@ func newBootManagerFromVariables(vars EFIVariables) (BootManager, error) {
 		bm.bootOrder[i/2] = int(binary.LittleEndian.Uint16(bootOrderBytes[i : i+2]))
 	}
 
-	for _, name := range bm.efivars.GetVariableNames(efivars.GUIDGlobal) {
+	bm.entries = make(map[int]BootEntryVariable)
+	for _, name := range appEFIVars.GetVariableNames(efivars.GUIDGlobal) {
 		var entry BootEntryVariable
 		if parsed, err := fmt.Sscanf(name, "Boot%04X", &entry.BootNumber); len(name) != 8 || parsed != 1 || err != nil {
 			continue
 		}
-		entry.Data, entry.Attributes = bm.efivars.GetVariable(efivars.GUIDGlobal, name)
+		entry.Data, entry.Attributes = appEFIVars.GetVariable(efivars.GUIDGlobal, name)
 		entry.LoadOption, err = efivars.NewLoadOptionFromVariable(entry.Data)
 		if err != nil {
 			log.Printf("Invalid boot entry Boot%04X: %s\n", entry.BootNumber, err)
@@ -98,7 +90,7 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry) (int, error) {
 	}
 	variable := fmt.Sprintf("Boot%04X", bootNext)
 
-	dp, err := bm.efivars.NewDevicePath(entry.Filename, efivars.BootAbbrevHD)
+	dp, err := appEFIVars.NewDevicePath(entry.Filename, efivars.BootAbbrevHD)
 	if err != nil {
 		return -1, err
 	}
@@ -129,7 +121,7 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry) (int, error) {
 		}
 	}
 
-	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, variable, entryVar.Data, entryVar.Attributes, 0644); err != nil {
+	if err := appEFIVars.SetVariable(efivars.GUIDGlobal, variable, entryVar.Data, entryVar.Attributes, 0644); err != nil {
 		return -1, err
 	}
 
@@ -151,7 +143,7 @@ func (bm *BootManager) DeleteEntry(bootNum int) error {
 		return fmt.Errorf("Tried deleting a non-existing variable %s", variable)
 	}
 
-	if err := bm.efivars.DelVariable(efivars.GUIDGlobal, variable); err != nil {
+	if err := appEFIVars.DelVariable(efivars.GUIDGlobal, variable); err != nil {
 		return err
 	}
 	delete(bm.entries, bootNum)
@@ -199,7 +191,7 @@ func (bm *BootManager) PrependAndSetBootOrder(head []int) error {
 	}
 
 	// Set the boot order and update our cache
-	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, "BootOrder", output, bm.bootOrderAttrs, 0644); err != nil {
+	if err := appEFIVars.SetVariable(efivars.GUIDGlobal, "BootOrder", output, bm.bootOrderAttrs, 0644); err != nil {
 		return err
 	}
 

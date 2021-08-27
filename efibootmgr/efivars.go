@@ -49,3 +49,6 @@ func (RealEFIVariables) DelVariable(guid efivars.GUID, name string) error {
 func (RealEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
 	return efivars.NewDevicePath(filepath, options)
 }
+
+// Chosen implementation
+var appEFIVars EFIVariables = RealEFIVariables{}
