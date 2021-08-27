@@ -38,18 +38,15 @@ func NewKernelManager() (*KernelManager, error) {
 	km.sourceDir = "/usr/lib/linux"
 	km.targetDir = "/boot/efi/EFI/ubuntu"
 
-	file, err := appFs.Open("/etc/kernel/cmdline")
-	if err != nil {
-		return nil, fmt.Errorf("Cannot read kernel command line: %w", err)
-	}
-	defer file.Close()
+	if file, err := appFs.Open("/etc/kernel/cmdline"); err == nil {
+		defer file.Close()
+		data, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, fmt.Errorf("Cannot read kernel command line: %w", err)
+		}
 
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot read kernel command line: %w", err)
+		km.kernelOptions = strings.TrimSpace(string(data))
 	}
-
-	km.kernelOptions = strings.TrimSpace(string(data))
 
 	km.sourceKernels, err = km.readKernels(km.sourceDir)
 	if err != nil {
@@ -118,10 +115,14 @@ func (km *KernelManager) InstallKernels() error {
 		// which here somehow denotes it is in the same directory rather than the root.
 		// FIXME: Extract vendor name out into config file
 		skVersion := getKernelABI(sk)
+		options := "\\" + sk
+		if km.kernelOptions != "" {
+			options += " " + km.kernelOptions
+		}
 		km.bootEntries = append(km.bootEntries, BootEntry{
 			Filename:    "shim" + GetEfiArchitecture() + ".efi",
 			Label:       fmt.Sprintf("Ubuntu with kernel %s", skVersion),
-			Options:     "\\" + sk + " " + km.kernelOptions,
+			Options:     options,
 			Description: fmt.Sprintf("Ubuntu entry for kernel %s", skVersion),
 		})
 	}
