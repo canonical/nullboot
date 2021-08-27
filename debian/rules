@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+export PATH := /usr/lib/go-1.16/bin:$(PATH)
+SHIM_SIGNED_VERSION := $(shell dpkg-query -f '$${Version}\n' -W shim-signed)
+export SHIM_SIGNED_VERSION
+
+%:
+	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
+
+override_dh_gencontrol:
+	dh_gencontrol -- -Vshim-signed:Version=$(SHIM_SIGNED_VERSION)
+
+override_dh_auto_install:
+	mkdir -p debian/nullboot/usr/lib/nullboot/shim
+	cp /usr/lib/shim/shim*.signed /usr/lib/shim/fb*.efi /usr/lib/shim/mm*.efi debian/nullboot/usr/lib/nullboot/shim
+	dh_auto_install -- --no-source

@@ -1,0 +1,5 @@
+nullboot (0.0.1-0ubuntu0.20.04~ppa1) focal; urgency=medium
+
+  * Initial release
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Fri, 27 Aug 2021 20:32:05 +0200

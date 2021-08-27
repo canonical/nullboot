@@ -1,0 +1,28 @@
+Source: nullboot
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Uploaders: Julian Andres Klode <juliank@ubuntu.com>
+Section: golang
+Testsuite: autopkgtest-pkg-go
+Priority: optional
+Build-Depends: debhelper-compat (= 11),
+               dh-golang,
+               golang-1.16,
+               golang-github-knqyf263-go-deb-version-dev,
+               golang-github-spf13-afero-dev,
+               golang-golang-x-text-dev,
+               libefiboot-dev,
+               libefivar-dev,
+               shim-signed
+Standards-Version: 4.5.0
+Vcs-Browser: https://github.com/canonical/nullboot
+Vcs-Git: https://github.com/canonical/nullboot.git
+Homepage: https://github.com/canonical/nullboot
+Rules-Requires-Root: no
+XS-Go-Import-Path: github.com/canonical/nullboot
+
+Package: nullboot
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: shim-signed (= ${shim-signed:Version}), ${misc:Built-Using}
+Description: A UEFI boot entry manager
+ TODO: long description
