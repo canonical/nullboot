@@ -5,6 +5,8 @@
 package efibootmgr
 
 import (
+	"github.com/spf13/afero"
+
 	"bytes"
 	"runtime"
 	"testing"
@@ -44,5 +46,50 @@ func TestWriteShimFallback(t *testing.T) {
 			}
 		})
 
+	}
+}
+
+func TestInstallShim_NoKernelsAvailable(t *testing.T) {
+	memFs := afero.NewMemMapFs()
+	appFs = MapFS{memFs}
+
+	updated, err := InstallShim("/boot/efi", "/usr/lib/nullboot/shim-signed", "ubuntu")
+	if updated {
+		t.Errorf("Unexpected update")
+	}
+	if err == nil {
+		t.Errorf("Unexpected success")
+	}
+}
+
+func TestInstallShim_BasicUpdate(t *testing.T) {
+	memFs := afero.NewMemMapFs()
+	appFs = MapFS{memFs}
+
+	afero.WriteFile(memFs, "/usr/lib/nullboot/shim-signed/shimx64.efi.signed", []byte("shim"), 0644)
+	afero.WriteFile(memFs, "/usr/lib/nullboot/shim-signed/fbx64.efi", []byte("fb"), 0644)
+	afero.WriteFile(memFs, "/usr/lib/nullboot/shim-signed/mmx64.efi", []byte("mm"), 0644)
+	afero.WriteFile(memFs, "/boot/efi/EFI/BOOT/BOOTX64.EFI", []byte("old shim"), 0644)
+
+	updated, err := InstallShim("/boot/efi", "/usr/lib/nullboot/shim-signed", "ubuntu")
+	if err != nil {
+		t.Errorf("Expected success, got error: %v", err)
+	}
+	if !updated {
+		t.Errorf("Expected successful update")
+	}
+
+	copies := map[string]string{
+		"/boot/efi/EFI/BOOT/BOOTX64.EFI":   "/usr/lib/nullboot/shim-signed/shimx64.efi.signed",
+		"/boot/efi/EFI/BOOT/fbx64.efi":     "/usr/lib/nullboot/shim-signed/fbx64.efi",
+		"/boot/efi/EFI/BOOT/mmx64.efi":     "/usr/lib/nullboot/shim-signed/mmx64.efi",
+		"/boot/efi/EFI/ubuntu/shimx64.efi": "/usr/lib/nullboot/shim-signed/shimx64.efi.signed",
+		"/boot/efi/EFI/ubuntu/fbx64.efi":   "/usr/lib/nullboot/shim-signed/fbx64.efi",
+		"/boot/efi/EFI/ubuntu/mmx64.efi":   "/usr/lib/nullboot/shim-signed/mmx64.efi",
+	}
+	for dst, src := range copies {
+		if err := CheckFilesEqual(memFs, dst, src); err != nil {
+			t.Error(err)
+		}
 	}
 }

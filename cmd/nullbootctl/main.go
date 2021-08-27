@@ -15,6 +15,15 @@ func main() {
 		log.Print(err)
 		os.Exit(1)
 	}
+	// Install the shim
+	updatedShim, err := efibootmgr.InstallShim("/boot/efi", "/usr/lib/shim", "ubuntu")
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	if updatedShim {
+		log.Print("Updated shim")
+	}
 	// Install new kernels and commit to bootloader config. This
 	// way
 	if err = km.InstallKernels(); err != nil {

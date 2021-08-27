@@ -9,6 +9,7 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 	"io"
+	"path"
 	"runtime"
 	"strings"
 )
@@ -61,4 +62,37 @@ func WriteShimFallback(w io.Writer, entries []BootEntry) error {
 	}
 
 	return nil
+}
+
+// InstallShim installs the shim into the given ESP for the given vendor
+// It returns true if it installed the shim.
+func InstallShim(esp string, source string, vendor string) (bool, error) {
+	if err := appFs.MkdirAll(path.Join(esp, "EFI", "BOOT"), 0644); err != nil {
+		return false, fmt.Errorf("Could not create BOOT directory on ESP: %w", err)
+	}
+	if err := appFs.MkdirAll(path.Join(esp, "EFI", vendor), 0644); err != nil {
+		return false, fmt.Errorf("Could not create vendor directory on ESP: %w", err)
+	}
+
+	updatedAny := false
+	shim := "shim" + GetEfiArchitecture() + ".efi"
+	fb := "fb" + GetEfiArchitecture() + ".efi"
+	mm := "mm" + GetEfiArchitecture() + ".efi"
+	removable := "BOOT" + strings.ToUpper(GetEfiArchitecture()) + ".EFI"
+	copies := map[string]string{
+		path.Join(esp, "EFI", "BOOT", removable): shim + ".signed",
+		path.Join(esp, "EFI", "BOOT", fb):        fb,
+		path.Join(esp, "EFI", "BOOT", mm):        mm,
+		path.Join(esp, "EFI", vendor, shim):      shim + ".signed",
+		path.Join(esp, "EFI", vendor, fb):        fb,
+		path.Join(esp, "EFI", vendor, mm):        mm,
+	}
+	for dst, src := range copies {
+		updated, err := MaybeUpdateFile(dst, path.Join(source, src))
+		if err != nil {
+			return false, fmt.Errorf("Could not update file: %v", err)
+		}
+		updatedAny = updatedAny || updated
+	}
+	return updatedAny, nil
 }
