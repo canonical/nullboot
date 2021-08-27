@@ -6,6 +6,7 @@
 package efibootmgr
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 )
@@ -80,44 +81,53 @@ func (bm *BootManager) NextFreeEntry() (int, error) {
 	return -1, fmt.Errorf("Maximum number of boot entries exceeded")
 }
 
-// AddEntry adds a boot entry to the boot manager.
-// This finds the next free variable and adds a boot entry
-func (bm *BootManager) AddEntry(desc string, path string, options string) (int, error) {
+// FindOrCreateEntry finds a matching entry in the boot device selection menu,
+// or creates one if it is missing.
+//
+// It returns the number of the entry created, or -1 on failure, with error set.
+func (bm *BootManager) FindOrCreateEntry(entry BootEntry) (int, error) {
 	bootNext, err := bm.NextFreeEntry()
 	if err != nil {
 		return -1, err
 	}
 	variable := fmt.Sprintf("Boot%04X", bootNext)
 
-	dp, err := bm.efivars.NewDevicePath(path, efivars.BootAbbrevHD)
+	dp, err := bm.efivars.NewDevicePath(entry.Filename, efivars.BootAbbrevHD)
 	if err != nil {
 		return -1, err
 	}
 
-	optionalData, err := efivars.NewLoadOptionArgumentFromUTF8(options)
+	optionalData, err := efivars.NewLoadOptionArgumentFromUTF8(entry.Options)
 	optionalData = append(optionalData, 0)
 
 	if err != nil {
 		return -1, err
 	}
 
-	loadoption, err := efivars.NewLoadOption(efivars.LoadOptionActive, dp, desc, optionalData)
+	loadoption, err := efivars.NewLoadOption(efivars.LoadOptionActive, dp, entry.Label, optionalData)
 	if err != nil {
 		return -1, err
 	}
 
-	entry := BootEntryVariable{
+	entryVar := BootEntryVariable{
 		BootNumber: bootNext,
 		Data:       loadoption.Data,
 		Attributes: efivars.VariableNonVolatile | efivars.VariableBootServiceAccess | efivars.VariableRuntimeAccess,
 		LoadOption: loadoption,
 	}
 
-	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, variable, entry.Data, entry.Attributes, 0644); err != nil {
+	// Detect duplicates and ignore
+	for _, existingVar := range bm.entries {
+		if bytes.Equal(existingVar.LoadOption.Data, loadoption.Data) && existingVar.Attributes == entryVar.Attributes {
+			return existingVar.BootNumber, nil
+		}
+	}
+
+	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, variable, entryVar.Data, entryVar.Attributes, 0644); err != nil {
 		return -1, nil
 	}
 
-	bm.entries[bootNext] = entry
+	bm.entries[bootNext] = entryVar
 
 	return bootNext, nil
 }

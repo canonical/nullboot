@@ -43,7 +43,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// This creates entry Boot0000
-	got, err := bm.AddEntry("desc", "path", "arg1 arg2")
+	got, err := bm.FindOrCreateEntry(BootEntry{Filename: "path", Label: "desc", Options: "arg1 arg2"})
 	if want := 0; got != want {
 		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}
@@ -70,7 +70,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// This creates entry Boot0002
-	got, err = bm.AddEntry("desc2", "path2", "arg3 arg4")
+	got, err = bm.FindOrCreateEntry(BootEntry{Filename: "path2", Label: "desc2", Options: "arg3 arg4"})
 	if want := 2; got != want {
 		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}
@@ -94,6 +94,15 @@ func TestBootManager_mocked(t *testing.T) {
 	pathGot = efivars.LoadOption{Data: boot0002.data}.Path()
 	if want := (efivars.LoadOption{Data: UsbrBootCdrom}).Path(); !bytes.Equal(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
+	}
+
+	// Check that the existing entry is not recreated
+	got, err = bm.FindOrCreateEntry(BootEntry{Filename: "path2", Label: "desc2", Options: "arg3 arg4"})
+	if want := 2; got != want {
+		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
+	}
+	if err != nil {
+		t.Fatalf("could not create next boot entry, error: %v", err)
 	}
 
 }
