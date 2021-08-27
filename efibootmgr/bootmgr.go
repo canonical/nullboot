@@ -132,8 +132,34 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry) (int, error) {
 	return bootNext, nil
 }
 
-// DeleteEntry deletes an entry.
+// DeleteEntry deletes an entry and updates the cached boot order.
+//
+// The boot order still needs to be committed afterwards. It is not written back immediately,
+// as there will usually be multiple places to update boot order, and we can coalesce those
+// writes. We still have to update the boot order though, such that when we delete an entry
+// and then create a new one with the same number we don't accidentally have the new one in
+// the order.
 func (bm *BootManager) DeleteEntry(bootNum int) error {
-	// FIXME: DeleteEntry is a stub
-	return fmt.Errorf("Deleting is not yet implemented")
+	variable := fmt.Sprintf("Boot%04X", bootNum)
+	if _, ok := bm.entries[bootNum]; !ok {
+		return fmt.Errorf("Tried deleting a non-existing variable %s", variable)
+	}
+
+	if err := bm.efivars.DelVariable(efivars.GUIDGlobal, variable); err != nil {
+		return err
+	}
+	delete(bm.entries, bootNum)
+
+	var newOrder []int
+
+	for _, orderEntry := range bm.bootOrder {
+		if orderEntry != bootNum {
+			newOrder = append(newOrder, orderEntry)
+		}
+
+	}
+
+	bm.bootOrder = newOrder
+
+	return nil
 }

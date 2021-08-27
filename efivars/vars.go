@@ -74,3 +74,12 @@ func SetVariable(guid GUID, name string, data []byte, attrs uint32, mode os.File
 
 	return nil
 }
+
+// DelVariable deletes the specified variable, or returns an error if it fails.
+func DelVariable(guid GUID, name string) error {
+	if C.efi_del_variable(guid, C.CString(name)) != 0 {
+		return fmt.Errorf("Could not set variable %s", name)
+	}
+
+	return nil
+}

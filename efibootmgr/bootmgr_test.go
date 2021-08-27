@@ -107,6 +107,42 @@ func TestBootManager_mocked(t *testing.T) {
 
 }
 
+func TestBootManagerDeleteEntry(t *testing.T) {
+	mockvars := MockEFIVariables{
+		map[efivars.GUID]map[string]mockEFIVariable{
+			efivars.GUIDGlobal: {
+				"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
+				"Boot0001":  {UsbrBootCdrom, 42},
+				"Boot0002":  {UsbrBootCdrom, 43},
+			},
+		},
+	}
+
+	bm, err := newBootManagerFromVariables(&mockvars)
+	if err != nil {
+		t.Fatalf("Could not create boot manager: %v", err)
+	}
+
+	if err := bm.DeleteEntry(1); err != nil {
+		t.Errorf("Expected successful deletion, got %v", err)
+	}
+
+	if !reflect.DeepEqual(bm.bootOrder, []int{2, 3}) {
+		t.Errorf("Expected boot order to be 2, 3 got %v", bm.bootOrder)
+
+	}
+	if !bytes.Equal(mockvars.store[efivars.GUIDGlobal]["BootOrder"].data, []byte{1, 0, 2, 0, 3, 0}) {
+		t.Errorf("Expected actual boot order to not be changed, got %v.", mockvars.store[efivars.GUIDGlobal]["BootOrder"])
+	}
+	if err := bm.DeleteEntry(1); err == nil {
+		t.Errorf("Expected failure in deletion")
+	}
+
+	delete(mockvars.store[efivars.GUIDGlobal], "Boot0002")
+	if err := bm.DeleteEntry(2); err == nil {
+		t.Errorf("Expected failure in deletion")
+	}
+}
 func TestBootManager_unsupported(t *testing.T) {
 	mockvars := NoEFIVariables{}
 

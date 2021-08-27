@@ -8,6 +8,7 @@ package efibootmgr
 
 import (
 	"errors"
+	"fmt"
 	"github.com/canonical/nullboot/efivars"
 	"os"
 )
@@ -20,6 +21,9 @@ func (NoEFIVariables) GetVariable(guid efivars.GUID, name string) (data []byte, 
 }
 func (NoEFIVariables) VariablesSupported() bool { return false }
 func (NoEFIVariables) SetVariable(guid efivars.GUID, name string, data []byte, attrs uint32, mode os.FileMode) error {
+	return errors.New("Not implemented")
+}
+func (NoEFIVariables) DelVariable(guid efivars.GUID, name string) error {
 	return errors.New("Not implemented")
 }
 func (NoEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
@@ -54,6 +58,13 @@ func (m *MockEFIVariables) SetVariable(guid efivars.GUID, name string, data []by
 		m.store[guid] = make(map[string]mockEFIVariable)
 	}
 	m.store[guid][name] = mockEFIVariable{data, attrs}
+	return nil
+}
+func (m MockEFIVariables) DelVariable(guid efivars.GUID, name string) error {
+	if _, ok := m.store[guid][name]; !ok {
+		return fmt.Errorf("Could not delete non-existing variable %s", name)
+	}
+	delete(m.store[guid], name)
 	return nil
 }
 func (m MockEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {

@@ -15,6 +15,7 @@ type EFIVariables interface {
 	GetVariable(guid efivars.GUID, name string) (data []byte, attrs uint32)
 	VariablesSupported() bool
 	SetVariable(guid efivars.GUID, name string, data []byte, attrs uint32, mode os.FileMode) error
+	DelVariable(guid efivars.GUID, name string) error
 	NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error)
 }
 
@@ -37,6 +38,11 @@ func (RealEFIVariables) VariablesSupported() bool { return efivars.VariablesSupp
 // SetVariable proxy
 func (RealEFIVariables) SetVariable(guid efivars.GUID, name string, data []byte, attrs uint32, mode os.FileMode) error {
 	return efivars.SetVariable(guid, name, data, attrs, mode)
+}
+
+// DelVariable proxy
+func (RealEFIVariables) DelVariable(guid efivars.GUID, name string) error {
+	return efivars.DelVariable(guid, name)
 }
 
 // NewDevicePath proxy
