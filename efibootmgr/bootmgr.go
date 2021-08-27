@@ -7,6 +7,7 @@ package efibootmgr
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 )
@@ -27,9 +28,10 @@ type BootEntryVariable struct {
 
 // BootManager manages the boot device selection menu entries (Boot0000...BootFFFF).
 type BootManager struct {
-	entries   map[int]BootEntryVariable // The Boot<number> variables
-	bootOrder []int                     // The BootOrder variable, parsed
-	efivars   EFIVariables              // An implementation of efi variables
+	entries        map[int]BootEntryVariable // The Boot<number> variables
+	bootOrder      []int                     // The BootOrder variable, parsed
+	bootOrderAttrs uint32                    // The attributes of BootOrder variable
+	efivars        EFIVariables              // An implementation of efi variables
 }
 
 // NewBootManagerFromSystem returns a new BootManager object, initialized with the system state.
@@ -40,17 +42,21 @@ func NewBootManagerFromSystem() (BootManager, error) {
 // newBootManagerFromVariables abstraction
 func newBootManagerFromVariables(vars EFIVariables) (BootManager, error) {
 	var err error
-	bm := BootManager{make(map[int]BootEntryVariable), nil, vars}
+	bm := BootManager{
+		entries: make(map[int]BootEntryVariable),
+		efivars: vars,
+	}
 
 	if !bm.efivars.VariablesSupported() {
 		return BootManager{}, fmt.Errorf("Variables not supported")
 	}
 
-	bootOrderBytes, _ := bm.efivars.GetVariable(efivars.GUIDGlobal, "BootOrder")
+	bootOrderBytes, bootOrderAttrs := bm.efivars.GetVariable(efivars.GUIDGlobal, "BootOrder")
 	bm.bootOrder = make([]int, len(bootOrderBytes)/2)
+	bm.bootOrderAttrs = bootOrderAttrs
 	for i := 0; i < len(bootOrderBytes); i += 2 {
 		// FIXME: It's probably not valid to assume little-endian here?
-		bm.bootOrder[i/2] = int(bootOrderBytes[i+1])<<16 + int(bootOrderBytes[i])
+		bm.bootOrder[i/2] = int(binary.LittleEndian.Uint16(bootOrderBytes[i : i+2]))
 	}
 
 	for _, name := range bm.efivars.GetVariableNames(efivars.GUIDGlobal) {
@@ -162,4 +168,42 @@ func (bm *BootManager) DeleteEntry(bootNum int) error {
 	bm.bootOrder = newOrder
 
 	return nil
+}
+
+// PrependAndSetBootOrder commits a new boot order or returns an error.
+//
+// The boot order specified is prepended to the existing one, and the order
+// is deduplicated before committing.
+func (bm *BootManager) PrependAndSetBootOrder(head []int) error {
+	var newOrder []int
+
+	// Combine head with existing boot order, filter out duplicates and non-existing entries
+	for _, num := range append(append([]int(nil), head...), bm.bootOrder...) {
+		isDuplicate := false
+		for _, otherNum := range newOrder {
+			if otherNum == num {
+				isDuplicate = true
+			}
+		}
+		if _, ok := bm.entries[num]; ok && !isDuplicate {
+			newOrder = append(newOrder, num)
+		}
+	}
+
+	// Encode the boot order to bytes
+	var output []byte
+	for _, num := range newOrder {
+		var numBytes [2]byte
+		binary.LittleEndian.PutUint16(numBytes[0:], uint16(num))
+		output = append(output, numBytes[0], numBytes[1])
+	}
+
+	// Set the boot order and update our cache
+	if err := bm.efivars.SetVariable(efivars.GUIDGlobal, "BootOrder", output, bm.bootOrderAttrs, 0644); err != nil {
+		return err
+	}
+
+	bm.bootOrder = newOrder
+	return nil
+
 }
