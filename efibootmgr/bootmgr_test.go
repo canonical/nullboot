@@ -7,11 +7,16 @@ package efibootmgr
 import (
 	"bytes"
 	"github.com/canonical/nullboot/efivars"
+	"github.com/spf13/afero"
 	"reflect"
 	"testing"
 )
 
 func TestBootManager_mocked(t *testing.T) {
+	memFs := afero.NewMemMapFs()
+	appFs = MapFS{memFs}
+	afero.WriteFile(memFs, "path", []byte("file a"), 0644)
+	afero.WriteFile(memFs, "path2", []byte("file b"), 0644)
 	mockvars := MockEFIVariables{
 		map[efivars.GUID]map[string]mockEFIVariable{
 			efivars.GUIDGlobal: {
@@ -44,12 +49,12 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// This creates entry Boot0000
-	got, err := bm.FindOrCreateEntry(BootEntry{Filename: "path", Label: "desc", Options: "arg1 arg2"})
-	if want := 0; got != want {
-		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
-	}
+	got, err := bm.FindOrCreateEntry(BootEntry{Filename: "path", Label: "desc", Options: "arg1 arg2"}, "")
 	if err != nil {
 		t.Fatalf("could not create next boot entry, error: %v", err)
+	}
+	if want := 0; got != want {
+		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}
 
 	boot0000, ok := mockvars.store[efivars.GUIDGlobal]["Boot0000"]
@@ -71,7 +76,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// This creates entry Boot0002
-	got, err = bm.FindOrCreateEntry(BootEntry{Filename: "path2", Label: "desc2", Options: "arg3 arg4"})
+	got, err = bm.FindOrCreateEntry(BootEntry{Filename: "path2", Label: "desc2", Options: "arg3 arg4"}, "")
 	if want := 2; got != want {
 		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}
@@ -98,7 +103,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 
 	// Check that the existing entry is not recreated
-	got, err = bm.FindOrCreateEntry(BootEntry{Filename: "path2", Label: "desc2", Options: "arg3 arg4"})
+	got, err = bm.FindOrCreateEntry(BootEntry{Filename: "path2", Label: "desc2", Options: "arg3 arg4"}, "")
 	if want := 2; got != want {
 		t.Fatalf("expected to create Boot%04X, created Boot%04X", want, got)
 	}

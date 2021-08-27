@@ -41,6 +41,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("1.0-1-generic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644)
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
+	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/shimx64.efi", []byte("file a"), 0644)
 	mockvars := MockEFIVariables{
 		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {
 			"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
@@ -50,7 +51,9 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 
 	// Create an obsolete Boot0000 entry that we want to collect at the end.
 	bm, _ := NewBootManagerFromSystem()
-	bm.FindOrCreateEntry(BootEntry{Filename: "shimx64.efi", Label: "Ubuntu with obsolete kernel", Options: ""})
+	if _, err := bm.FindOrCreateEntry(BootEntry{Filename: "shimx64.efi", Label: "Ubuntu with obsolete kernel", Options: ""}, "/boot/efi/EFI/ubuntu"); err != nil {
+		t.Fatal(err)
+	}
 
 	km, err := NewKernelManager()
 	if err != nil {

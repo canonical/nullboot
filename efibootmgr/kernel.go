@@ -176,7 +176,7 @@ func (km *KernelManager) CommitToBootLoader() error {
 
 	// Add new entries, find existing ones and build target boot order
 	for _, entry := range km.bootEntries {
-		bootNum, err := km.bootManager.FindOrCreateEntry(entry)
+		bootNum, err := km.bootManager.FindOrCreateEntry(entry, km.targetDir)
 		if err != nil {
 			return fmt.Errorf("Failure to add boot entry for %s: %w", entry.Label, err)
 		}

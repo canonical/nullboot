@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"path"
 )
 
 import "github.com/canonical/nullboot/efivars"
@@ -83,14 +84,16 @@ func (bm *BootManager) NextFreeEntry() (int, error) {
 // or creates one if it is missing.
 //
 // It returns the number of the entry created, or -1 on failure, with error set.
-func (bm *BootManager) FindOrCreateEntry(entry BootEntry) (int, error) {
+//
+// The argument relativeTo specifies the directory entry.Filename is in.
+func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (int, error) {
 	bootNext, err := bm.NextFreeEntry()
 	if err != nil {
 		return -1, err
 	}
 	variable := fmt.Sprintf("Boot%04X", bootNext)
 
-	dp, err := appEFIVars.NewDevicePath(entry.Filename, efivars.BootAbbrevHD)
+	dp, err := appEFIVars.NewDevicePath(path.Join(relativeTo, entry.Filename), efivars.BootAbbrevHD)
 	if err != nil {
 		return -1, err
 	}

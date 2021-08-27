@@ -68,6 +68,11 @@ func (m MockEFIVariables) DelVariable(guid efivars.GUID, name string) error {
 	return nil
 }
 func (m MockEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
+	file, err := appFs.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	file.Close()
 	return efivars.LoadOption{Data: UsbrBootCdrom}.Path(), nil
 }
 
