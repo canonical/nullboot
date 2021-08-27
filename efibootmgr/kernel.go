@@ -6,6 +6,7 @@ package efibootmgr
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"path"
 	"sort"
@@ -35,7 +36,19 @@ func NewKernelManager() (*KernelManager, error) {
 	// FIXME: Read dirs and options from a configuration option
 	km.sourceDir = "/usr/lib/linux"
 	km.targetDir = "/boot/efi/EFI/ubuntu"
-	km.kernelOptions = "root=magic"
+
+	file, err := appFs.Open("/etc/kernel/cmdline")
+	if err != nil {
+		return nil, fmt.Errorf("Cannot read kernel command line: %w", err)
+	}
+	defer file.Close()
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot read kernel command line: %w", err)
+	}
+
+	km.kernelOptions = strings.TrimSpace(string(data))
 
 	km.sourceKernels, err = km.readKernels(km.sourceDir)
 	if err != nil {

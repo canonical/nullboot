@@ -38,6 +38,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("1.0-1-generic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644)
+	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
 
 	km, err := NewKernelManager()
 	if err != nil {
@@ -91,6 +92,7 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/kernel.efi-1.0-1-generic", []byte("1.0-1-generic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/BOOTX64.CSV", []byte(""), 0644)
+	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
 
 	km, err := NewKernelManager()
 	if err != nil {
