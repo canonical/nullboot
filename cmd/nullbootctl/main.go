@@ -16,7 +16,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Install the shim
-	updatedShim, err := efibootmgr.InstallShim("/boot/efi", "/usr/lib/shim", "ubuntu")
+	updatedShim, err := efibootmgr.InstallShim("/boot/efi", "/usr/lib/nullboot/shim", "ubuntu")
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
