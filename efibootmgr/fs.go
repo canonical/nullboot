@@ -19,6 +19,8 @@ import (
 type FS interface {
 	// Create behaves like os.Create()
 	Create(path string) (io.WriteCloser, error)
+	// MkdirAll behaves like os.MkdirAll()
+	MkdirAll(path string, perm os.FileMode) error
 	// Open behaves like os.Open()
 	Open(path string) (io.ReadSeekCloser, error)
 	// ReadDir behaves like os.ReadDir()
@@ -30,10 +32,11 @@ type FS interface {
 // realFS implements FS using the os package
 type realFS struct{}
 
-func (realFS) Create(path string) (io.WriteCloser, error)  { return os.Create(path) }
-func (realFS) Open(path string) (io.ReadSeekCloser, error) { return os.Open(path) }
-func (realFS) ReadDir(path string) ([]os.DirEntry, error)  { return os.ReadDir(path) }
-func (realFS) Remove(path string) error                    { return os.Remove(path) }
+func (realFS) Create(path string) (io.WriteCloser, error)   { return os.Create(path) }
+func (realFS) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
+func (realFS) Open(path string) (io.ReadSeekCloser, error)  { return os.Open(path) }
+func (realFS) ReadDir(path string) ([]os.DirEntry, error)   { return os.ReadDir(path) }
+func (realFS) Remove(path string) error                     { return os.Remove(path) }
 
 // appFs is our default FS
 var appFs FS = realFS{}

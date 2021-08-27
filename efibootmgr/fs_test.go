@@ -24,9 +24,10 @@ type dirEntry struct {
 func (d dirEntry) Info() (os.FileInfo, error) { return os.FileInfo(d), nil }
 func (d dirEntry) Type() os.FileMode          { return d.Mode().Type() }
 
-func (m MapFS) Create(path string) (io.WriteCloser, error)  { return m.p.Create(path) }
-func (m MapFS) Open(path string) (io.ReadSeekCloser, error) { return m.p.Open(path) }
-func (m MapFS) Remove(path string) error                    { return m.p.Remove(path) }
+func (m MapFS) Create(path string) (io.WriteCloser, error)   { return m.p.Create(path) }
+func (m MapFS) MkdirAll(path string, perm os.FileMode) error { return m.p.MkdirAll(path, perm) }
+func (m MapFS) Open(path string) (io.ReadSeekCloser, error)  { return m.p.Open(path) }
+func (m MapFS) Remove(path string) error                     { return m.p.Remove(path) }
 func (m MapFS) ReadDir(path string) ([]os.DirEntry, error) {
 	var out []os.DirEntry
 	fis, err := afero.ReadDir(m.p, path)
