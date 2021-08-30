@@ -28,8 +28,14 @@ var architectureMap = map[string]string{
 	"amd64": "x64",
 }
 
+// appArchitecture can be overriden in a test case for testing purposes
+var appArchitecture = ""
+
 // GetEfiArchitecture returns the EFI architecture for the target system
 func GetEfiArchitecture() string {
+	if appArchitecture != "" {
+		return appArchitecture
+	}
 	return architectureMap[runtime.GOARCH]
 }
 

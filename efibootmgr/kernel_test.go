@@ -35,6 +35,7 @@ func CheckFilesEqual(fs afero.Fs, want string, got string) error {
 }
 
 func TestKernelManagerNewAndInstallKernels(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
@@ -118,6 +119,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	}
 }
 func TestKernelManager_noCmdLine(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
@@ -182,6 +184,7 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 }
 
 func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
