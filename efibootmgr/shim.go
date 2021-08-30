@@ -58,7 +58,10 @@ func WriteShimFallbackToFile(path string, entries []BootEntry) error {
 // WriteShimFallback writes out a BOOT*.CSV for the shim fallback loader to the specified writer.
 // The output of this function is unencoded, use a transformed UTF-16 writer.
 func WriteShimFallback(w io.Writer, entries []BootEntry) error {
-	for _, entry := range entries {
+	// sigh, fallback prepends entries to the boot order so last line comes first, so we
+	// need to write out the lines in reverse boot order.
+	for i := len(entries); i > 0; i-- {
+		entry := entries[i-1]
 		if strings.Contains(entry.Filename, ",") ||
 			strings.Contains(entry.Label, ",") ||
 			strings.Contains(entry.Options, ",") ||

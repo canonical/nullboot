@@ -94,8 +94,8 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 		t.Fatalf("Could not read boot.csv: %v", err)
 	}
 
-	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic root=magic,Ubuntu entry for kernel 1.0-12-generic\n" +
-		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic root=magic,Ubuntu entry for kernel 1.0-1-generic\n")
+	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic root=magic,Ubuntu entry for kernel 1.0-1-generic\n" +
+		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic root=magic,Ubuntu entry for kernel 1.0-12-generic\n")
 	if want != string(data) {
 		t.Errorf("Boot entry mismatch:\nExpected:\n%v\nGot:\n%v", want, string(data))
 	}
@@ -158,8 +158,8 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 		t.Fatalf("Could not read boot.csv: %v", err)
 	}
 
-	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic,Ubuntu entry for kernel 1.0-12-generic\n" +
-		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic,Ubuntu entry for kernel 1.0-1-generic\n")
+	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic,Ubuntu entry for kernel 1.0-1-generic\n" +
+		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic,Ubuntu entry for kernel 1.0-12-generic\n")
 	if want != string(data) {
 		t.Errorf("Boot entry mismatch:\nExpected:\n%v\nGot:\n%v", want, string(data))
 	}
