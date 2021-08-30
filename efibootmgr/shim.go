@@ -24,8 +24,13 @@ type BootEntry struct {
 
 // architectureMaps maps from GOARCH to host
 var architectureMap = map[string]string{
-	"arm64": "aa64",
-	"amd64": "x64",
+	"386":      "ia32",
+	"amd64":    "x64",
+	"arm":      "arm",
+	"arm64":    "aa64",
+	"riscv":    "riscv32",
+	"riscv64":  "riscv64",
+	"riscv128": "riscv128",
 }
 
 // appArchitecture can be overriden in a test case for testing purposes
