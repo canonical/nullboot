@@ -5,10 +5,13 @@
 package main
 
 import "github.com/canonical/nullboot/efibootmgr"
+import "flag"
 import "log"
 import "os"
 
 func main() {
+	flag.Parse()
+
 	// FIXME: Let's actually add some arg parsing and stuff?
 	km, err := efibootmgr.NewKernelManager()
 	if err != nil {
