@@ -5,17 +5,17 @@
 package efibootmgr
 
 import (
-	"github.com/canonical/nullboot/efivars"
-	"github.com/spf13/afero"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-
 	"bytes"
 	"fmt"
 	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/canonical/go-efilib"
+	"github.com/spf13/afero"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 func CheckFilesEqual(fs afero.Fs, want string, got string) error {
@@ -44,9 +44,10 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/shimx64.efi", []byte("file a"), 0644)
 	mockvars := MockEFIVariables{
-		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {
-			"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			"Boot0001":  {UsbrBootCdrom, 42}}},
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
+		},
 	}
 	appEFIVars = &mockvars
 
@@ -127,9 +128,10 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/shimx64.efi", []byte("file a"), 0644)
 	mockvars := MockEFIVariables{
-		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {
-			"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			"Boot0001":  {UsbrBootCdrom, 42}}},
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
+		},
 	}
 	appEFIVars = &mockvars
 
@@ -193,7 +195,9 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/BOOTX64.CSV", []byte(""), 0644)
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
 	mockvars := MockEFIVariables{
-		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {"BootOrder": {[]byte{}, 123}}},
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{}, 123},
+		},
 	}
 	appEFIVars = &mockvars
 
