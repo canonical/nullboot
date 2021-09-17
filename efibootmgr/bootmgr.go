@@ -61,13 +61,11 @@ func NewBootManagerFromSystem() (BootManager, error) {
 	if err != nil {
 		return BootManager{}, fmt.Errorf("cannot obtain list of global variables: %v", err)
 	}
-	fmt.Println("names:", names)
 	for _, name := range names {
 		var entry BootEntryVariable
 		if parsed, err := fmt.Sscanf(name, "Boot%04X", &entry.BootNumber); len(name) != 8 || parsed != 1 || err != nil {
 			continue
 		}
-		fmt.Println(" reading:", name)
 		entry.Data, entry.Attributes, err = GetVariable(efi.GlobalVariable, name)
 		if err != nil {
 			return BootManager{}, fmt.Errorf("cannot read %s: %v", name, err)
