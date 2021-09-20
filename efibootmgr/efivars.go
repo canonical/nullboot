@@ -44,11 +44,13 @@ func (RealEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.
 // Chosen implementation
 var appEFIVars EFIVariables = RealEFIVariables{}
 
+// VariablesSupported indicates whether variables can be accessed.
 func VariablesSupported() bool {
 	_, err := appEFIVars.ListVariables()
 	return err == nil
 }
 
+// GetVariableNames returns the names of every variable with the specified GUID.
 func GetVariableNames(filterGUID efi.GUID) (names []string, err error) {
 	vars, err := appEFIVars.ListVariables()
 	if err != nil {
@@ -63,14 +65,17 @@ func GetVariableNames(filterGUID efi.GUID) (names []string, err error) {
 	return names, nil
 }
 
+// GetVariable returns the payload and attributes of the variable with the specified name.
 func GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
 	return appEFIVars.GetVariable(guid, name)
 }
 
+// SetVariable updates the payload of the variable with the specified name.
 func SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
 	return appEFIVars.SetVariable(guid, name, data, attrs)
 }
 
+// DelVariable deletes the non-authenticated variable with the specified name.
 func DelVariable(guid efi.GUID, name string) error {
 	_, attrs, err := appEFIVars.GetVariable(guid, name)
 	if err != nil {
