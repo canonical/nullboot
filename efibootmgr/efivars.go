@@ -7,7 +7,7 @@ package efibootmgr
 import (
 	//"errors"
 	"github.com/canonical/go-efilib"
-	"github.com/canonical/nullboot/efivars"
+	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
 // EFIVariables abstracts away the host-specific bits of the efivars module
@@ -15,7 +15,7 @@ type EFIVariables interface {
 	ListVariables() ([]efi.VariableDescriptor, error)
 	GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error)
 	SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error
-	NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error)
+	NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error)
 }
 
 // RealEFIVariables provides the real implementation of efivars
@@ -36,9 +36,9 @@ func (RealEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, att
 	return efi.WriteVariable(name, guid, attrs, data)
 }
 
-// NewDevicePath proxy
-func (RealEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
-	return efivars.NewDevicePath(filepath, options)
+// NewFileDevicePath proxy
+func (RealEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
+	return efi_linux.NewFileDevicePath(filepath, mode)
 }
 
 // Chosen implementation
@@ -86,4 +86,9 @@ func DelVariable(guid efi.GUID, name string) error {
 	//	return errors.New("variable must be deleted by setting an authenticated empty payload")
 	//}
 	return appEFIVars.SetVariable(guid, name, nil, attrs)
+}
+
+// NewFileDevicePath constructs a EFI device path for the specified file path.
+func NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
+	return appEFIVars.NewFileDevicePath(filepath, mode)
 }
