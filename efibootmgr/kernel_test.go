@@ -46,7 +46,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	mockvars := MockEFIVariables{
 		map[efi.VariableDescriptor]mockEFIVariable{
 			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
 		},
 	}
 	appEFIVars = &mockvars
@@ -113,8 +113,8 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	}
 
 	for i, desc := range map[int]string{2: "Ubuntu with kernel 1.0-12-generic", 3: "Ubuntu with kernel 1.0-1-generic", 1: "USBR BOOT CDROM"} {
-		if bm.entries[i].LoadOption.Desc() != desc {
-			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Desc())
+		if bm.entries[i].LoadOption.Description != desc {
+			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Description)
 		}
 
 	}
@@ -130,7 +130,7 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 	mockvars := MockEFIVariables{
 		map[efi.VariableDescriptor]mockEFIVariable{
 			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
 		},
 	}
 	appEFIVars = &mockvars
@@ -178,8 +178,8 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 	}
 
 	for i, desc := range map[int]string{2: "Ubuntu with kernel 1.0-12-generic", 3: "Ubuntu with kernel 1.0-1-generic", 1: "USBR BOOT CDROM"} {
-		if bm.entries[i].LoadOption.Desc() != desc {
-			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Desc())
+		if bm.entries[i].LoadOption.Description != desc {
+			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Description)
 		}
 
 	}

@@ -13,8 +13,7 @@ import (
 	"path"
 
 	"github.com/canonical/go-efilib"
-
-	"github.com/canonical/nullboot/efivars"
+	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
 const (
@@ -26,7 +25,7 @@ type BootEntryVariable struct {
 	BootNumber int                    // number of the Boot variable, for example, for Boot0004 this is 4
 	Data       []byte                 // the data of the variable
 	Attributes efi.VariableAttributes // any attributes set on the variable
-	LoadOption efivars.LoadOption     // the data of the variable parsed as a load option, if it is a valid load option
+	LoadOption *efi.LoadOption        // the data of the variable parsed as a load option, if it is a valid load option
 }
 
 // BootManager manages the boot device selection menu entries (Boot0000...BootFFFF).
@@ -70,7 +69,7 @@ func NewBootManagerFromSystem() (BootManager, error) {
 		if err != nil {
 			return BootManager{}, fmt.Errorf("cannot read %s: %v", name, err)
 		}
-		entry.LoadOption, err = efivars.NewLoadOptionFromVariable(entry.Data)
+		entry.LoadOption, err = efi.ReadLoadOption(bytes.NewReader(entry.Data))
 		if err != nil {
 			log.Printf("Invalid boot entry Boot%04X: %s\n", entry.BootNumber, err)
 		}
@@ -105,31 +104,35 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (in
 	}
 	variable := fmt.Sprintf("Boot%04X", bootNext)
 
-	dp, err := appEFIVars.NewDevicePath(path.Join(relativeTo, entry.Filename), efivars.BootAbbrevHD)
+	dp, err := appEFIVars.NewFileDevicePath(path.Join(relativeTo, entry.Filename), efi_linux.ShortFormPathHD)
 	if err != nil {
 		return -1, err
 	}
 
-	optionalData, err := efivars.NewLoadOptionArgumentFromUTF8(entry.Options)
-	if err != nil {
-		return -1, err
-	}
+	optionalData := new(bytes.Buffer)
+	binary.Write(optionalData, binary.LittleEndian, efi.ConvertUTF8ToUCS2(entry.Options+"\x00"))
 
-	loadoption, err := efivars.NewLoadOption(efivars.LoadOptionActive, dp, entry.Label, optionalData)
+	loadoption := &efi.LoadOption{
+		Attributes:   efi.LoadOptionActive,
+		Description:  entry.Label,
+		FilePath:     dp,
+		OptionalData: optionalData.Bytes()}
+
+	loadoptionBytes, err := loadoption.Bytes()
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("cannot encode load option: %v", err)
 	}
 
 	entryVar := BootEntryVariable{
 		BootNumber: bootNext,
-		Data:       loadoption.Data,
+		Data:       loadoptionBytes,
 		Attributes: efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess,
 		LoadOption: loadoption,
 	}
 
 	// Detect duplicates and ignore
 	for _, existingVar := range bm.entries {
-		if bytes.Equal(existingVar.LoadOption.Data, loadoption.Data) && existingVar.Attributes == entryVar.Attributes {
+		if bytes.Equal(existingVar.Data, entryVar.Data) && existingVar.Attributes == entryVar.Attributes {
 			return existingVar.BootNumber, nil
 		}
 	}

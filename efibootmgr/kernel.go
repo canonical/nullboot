@@ -186,7 +186,7 @@ func (km *KernelManager) CommitToBootLoader() error {
 
 	// Delete any obsolete kernels
 	for _, ev := range km.bootManager.entries {
-		if !strings.HasPrefix(ev.LoadOption.Desc(), "Ubuntu ") {
+		if !strings.HasPrefix(ev.LoadOption.Description, "Ubuntu ") {
 			continue
 		}
 		isObsolete := true

@@ -11,8 +11,6 @@ import (
 
 	"github.com/canonical/go-efilib"
 	"github.com/spf13/afero"
-
-	"github.com/canonical/nullboot/efivars"
 )
 
 func TestBootManager_mocked(t *testing.T) {
@@ -23,7 +21,7 @@ func TestBootManager_mocked(t *testing.T) {
 	mockvars := MockEFIVariables{
 		map[efi.VariableDescriptor]mockEFIVariable{
 			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
 		},
 	}
 
@@ -42,7 +40,7 @@ func TestBootManager_mocked(t *testing.T) {
 		t.Fatalf("Expected %v, got: %v", want, bm.bootOrder)
 	}
 
-	want := BootEntryVariable{1, UsbrBootCdrom, 42, efivars.LoadOption{Data: UsbrBootCdrom}}
+	want := BootEntryVariable{1, UsbrBootCdromOptBytes, 42, UsbrBootCdromOpt}
 	if !reflect.DeepEqual(bm.entries[1], want) {
 		t.Fatalf("\n"+
 			"expected: %+v\n"+
@@ -66,13 +64,17 @@ func TestBootManager_mocked(t *testing.T) {
 	if want := efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess; want != boot0000.attrs {
 		t.Fatalf("Expected attributes %v, got %v", want, boot0000.attrs)
 	}
-	descGot := efivars.LoadOption{Data: boot0000.data}.Desc()
+	optGot, err := efi.ReadLoadOption(bytes.NewReader(boot0000.data))
+	if err != nil {
+		t.Fatalf("Cannot decode load option: %v", err)
+	}
+	descGot := optGot.Description
 	if want := "desc"; want != descGot {
 		t.Fatalf("Expected desc %v, got %v", want, descGot)
 	}
 	// This is our mock path
-	pathGot := efivars.LoadOption{Data: boot0000.data}.Path()
-	if want := (efivars.LoadOption{Data: UsbrBootCdrom}).Path(); !bytes.Equal(want, pathGot) {
+	pathGot := optGot.FilePath
+	if want := UsbrBootCdromOpt.FilePath; !reflect.DeepEqual(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
 	}
 
@@ -93,13 +95,18 @@ func TestBootManager_mocked(t *testing.T) {
 	if want := efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess; want != boot0002.attrs {
 		t.Fatalf("Expected attributes %v, got %v", want, boot0002.attrs)
 	}
-	descGot = efivars.LoadOption{Data: boot0002.data}.Desc()
+	optGot, err = efi.ReadLoadOption(bytes.NewReader(boot0002.data))
+	if err != nil {
+		t.Fatalf("Cannot decode load option: %v", err)
+	}
+	descGot = optGot.Description
+
 	if want := "desc2"; want != descGot {
 		t.Fatalf("Expected desc %v, got %v", want, descGot)
 	}
 	// This is our mock path
-	pathGot = efivars.LoadOption{Data: boot0002.data}.Path()
-	if want := (efivars.LoadOption{Data: UsbrBootCdrom}).Path(); !bytes.Equal(want, pathGot) {
+	pathGot = optGot.FilePath
+	if want := UsbrBootCdromOpt.FilePath; !reflect.DeepEqual(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
 	}
 
@@ -118,8 +125,8 @@ func TestBootManagerDeleteEntry(t *testing.T) {
 	mockvars := MockEFIVariables{
 		map[efi.VariableDescriptor]mockEFIVariable{
 			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
-			{GUID: efi.GlobalVariable, Name: "Boot0002"}:  {UsbrBootCdrom, 43},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
+			{GUID: efi.GlobalVariable, Name: "Boot0002"}:  {UsbrBootCdromOptBytes, 43},
 		},
 	}
 
@@ -153,8 +160,8 @@ func TestBootManagerSetBootOrder(t *testing.T) {
 	mockvars := MockEFIVariables{
 		map[efi.VariableDescriptor]mockEFIVariable{
 			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdrom, 42},
-			{GUID: efi.GlobalVariable, Name: "Boot0002"}:  {UsbrBootCdrom, 43},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
+			{GUID: efi.GlobalVariable, Name: "Boot0002"}:  {UsbrBootCdromOptBytes, 43},
 		},
 	}
 	appEFIVars = &mockvars

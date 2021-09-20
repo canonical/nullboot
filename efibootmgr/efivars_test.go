@@ -10,8 +10,7 @@ import (
 	"errors"
 
 	"github.com/canonical/go-efilib"
-
-	"github.com/canonical/nullboot/efivars"
+	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
 type NoEFIVariables struct{}
@@ -28,7 +27,7 @@ func (NoEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs
 	return efi.ErrVarsUnavailable
 }
 
-func (NoEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
+func (NoEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
 	return nil, errors.New("Cannot access")
 }
 
@@ -68,13 +67,35 @@ func (m *MockEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, 
 	return nil
 }
 
-func (m MockEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
+func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
 	file, err := appFs.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
 	file.Close()
-	return efivars.LoadOption{Data: UsbrBootCdrom}.Path(), nil
+
+	return efi.DevicePath{
+		&efi.ACPIDevicePathNode{HID: 0x0a0341d0},
+		&efi.PCIDevicePathNode{Device: 0x14, Function: 0},
+		&efi.USBDevicePathNode{ParentPortNumber: 0xb, InterfaceNumber: 0x1}}, nil
 }
 
-var UsbrBootCdrom = []byte{9, 0, 0, 0, 28, 0, 85, 0, 83, 0, 66, 0, 82, 0, 32, 0, 66, 0, 79, 0, 79, 0, 84, 0, 32, 0, 67, 0, 68, 0, 82, 0, 79, 0, 77, 0, 0, 0, 2, 1, 12, 0, 208, 65, 3, 10, 0, 0, 0, 0, 1, 1, 6, 0, 0, 20, 3, 5, 6, 0, 11, 1, 127, 255, 4, 0}
+var (
+	UsbrBootCdromOpt = &efi.LoadOption{
+		Attributes:  efi.LoadOptionActive | efi.LoadOptionHidden,
+		Description: "USBR BOOT CDROM",
+		FilePath: efi.DevicePath{
+			&efi.ACPIDevicePathNode{HID: 0x0a0341d0},
+			&efi.PCIDevicePathNode{Device: 0x14, Function: 0},
+			&efi.USBDevicePathNode{ParentPortNumber: 0xb, InterfaceNumber: 0x1}},
+		OptionalData: []byte{}}
+	UsbrBootCdromOptBytes []byte
+)
+
+func init() {
+	var err error
+	UsbrBootCdromOptBytes, err = UsbrBootCdromOpt.Bytes()
+	if err != nil {
+		panic(err)
+	}
+}

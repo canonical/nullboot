@@ -1,5 +1,5 @@
-github.com/canonical/go-efilib v0.1.2-0.20210917121816-c162a28745b8 h1:iPYf0NrsmFpQcZYhZRym0cxkwcrO7S0r+HzJmnGxj+Y=
-github.com/canonical/go-efilib v0.1.2-0.20210917121816-c162a28745b8/go.mod h1:9Sr9kd7IhQPYqaU5nut8Ky97/CtlhHDzQncQnrULgDM=
+github.com/canonical/go-efilib v0.1.3-0.20210920143603-96e3beda3951 h1:OADR1bBZqXUyn9+IwcSQ8ZPOYt5kmMycR4m2apZA5Cc=
+github.com/canonical/go-efilib v0.1.3-0.20210920143603-96e3beda3951/go.mod h1:9Sr9kd7IhQPYqaU5nut8Ky97/CtlhHDzQncQnrULgDM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d h1:X4cedH4Kn3JPupAwwWuo4AzYp16P0OyLO9d7OnMZc/c=
 github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d/go.mod h1:o8sgWoz3JADecfc/cTYD92/Et1yMqMy0utV1z+VaZao=
