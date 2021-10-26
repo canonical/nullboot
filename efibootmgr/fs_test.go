@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"github.com/spf13/afero"
-	"io"
 	"os"
 	"testing"
 )
@@ -24,10 +23,11 @@ type dirEntry struct {
 func (d dirEntry) Info() (os.FileInfo, error) { return os.FileInfo(d), nil }
 func (d dirEntry) Type() os.FileMode          { return d.Mode().Type() }
 
-func (m MapFS) Create(path string) (io.WriteCloser, error)   { return m.p.Create(path) }
+func (m MapFS) Create(path string) (File, error)             { return m.p.Create(path) }
 func (m MapFS) MkdirAll(path string, perm os.FileMode) error { return m.p.MkdirAll(path, perm) }
-func (m MapFS) Open(path string) (io.ReadSeekCloser, error)  { return m.p.Open(path) }
+func (m MapFS) Open(path string) (File, error)               { return m.p.Open(path) }
 func (m MapFS) Remove(path string) error                     { return m.p.Remove(path) }
+func (m MapFS) Rename(oldname, newname string) error         { return m.p.Rename(oldname, newname) }
 func (m MapFS) ReadDir(path string) ([]os.DirEntry, error) {
 	var out []os.DirEntry
 	fis, err := afero.ReadDir(m.p, path)
@@ -39,6 +39,7 @@ func (m MapFS) ReadDir(path string) ([]os.DirEntry, error) {
 	}
 	return out, nil
 }
+func (m MapFS) TempFile(dir, prefix string) (File, error) { return afero.TempFile(m.p, dir, prefix) }
 
 func TestMaybeUpdateFile_missingSrc(t *testing.T) {
 	memFs := afero.NewMemMapFs()
@@ -107,6 +108,10 @@ func TestMaybeUpdateFile_updateFile(t *testing.T) {
 	if !bytes.Equal(srcBytes, dstBytes) {
 		t.Errorf("Expected: %v, got: %v", srcBytes, dstBytes)
 	}
+
+	// XXX: Need to check that updating is done in an atomic way,
+	// possibly by verifying that it's a new file. But that needs
+	// a real filesystem.
 }
 
 func TestMaybeUpdateFile_readOnlyTarget(t *testing.T) {
