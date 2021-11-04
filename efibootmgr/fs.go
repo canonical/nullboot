@@ -19,9 +19,11 @@ type File interface {
 	io.Closer
 	io.Writer
 	io.Reader
+	io.ReaderAt
 	io.Seeker
 
 	Name() string
+	Stat() (os.FileInfo, error)
 }
 
 // FS abstracts away the filesystem.
@@ -37,10 +39,14 @@ type FS interface {
 	Open(path string) (File, error)
 	// ReadDir behaves like os.ReadDir()
 	ReadDir(path string) ([]os.DirEntry, error)
+	// Readlink behaves like os.Readlink()
+	Readlink(path string) (string, error)
 	// Remove behaves like os.Remove()
 	Remove(path string) error
 	// Rename behaves like os.Rename()
 	Rename(oldname, newname string) error
+	// Stat behaves like os.Stat()
+	Stat(path string) (os.FileInfo, error)
 	// TempFile behaves like ioutil.TempFile()
 	TempFile(dir, prefix string) (File, error)
 }
@@ -52,8 +58,10 @@ func (realFS) Create(path string) (File, error)             { return os.Create(p
 func (realFS) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
 func (realFS) Open(path string) (File, error)               { return os.Open(path) }
 func (realFS) ReadDir(path string) ([]os.DirEntry, error)   { return os.ReadDir(path) }
+func (realFS) Readlink(path string) (string, error)         { return os.Readlink(path) }
 func (realFS) Remove(path string) error                     { return os.Remove(path) }
 func (realFS) Rename(oldname, newname string) error         { return os.Rename(oldname, newname) }
+func (realFS) Stat(path string) (os.FileInfo, error)        { return os.Stat(path) }
 func (realFS) TempFile(dir, prefix string) (File, error)    { return ioutil.TempFile(dir, prefix) }
 
 // appFs is our default FS
