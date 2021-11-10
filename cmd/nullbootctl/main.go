@@ -13,13 +13,13 @@ func main() {
 	flag.Parse()
 
 	// FIXME: Let's actually add some arg parsing and stuff?
-	km, err := efibootmgr.NewKernelManager()
+	km, err := efibootmgr.NewKernelManager("/run/mnt/ubuntu-seed", "/usr/lib/linux/efi", "ubuntu")
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
 	}
 	// Install the shim
-	updatedShim, err := efibootmgr.InstallShim("/boot/efi", "/usr/lib/nullboot/shim", "ubuntu")
+	updatedShim, err := efibootmgr.InstallShim("/run/mnt/ubuntu-seed", "/usr/lib/nullboot/shim", "ubuntu")
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
