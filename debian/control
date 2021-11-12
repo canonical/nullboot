@@ -7,11 +7,6 @@ Priority: optional
 Build-Depends: debhelper-compat (= 11),
                dh-golang,
                golang-1.16,
-               golang-github-knqyf263-go-deb-version-dev,
-               golang-github-spf13-afero-dev,
-               golang-golang-x-text-dev,
-               libefiboot-dev,
-               libefivar-dev,
                shim-signed
 Standards-Version: 4.5.0
 Vcs-Browser: https://github.com/canonical/nullboot
