@@ -1,3 +1,9 @@
+nullboot (0.1.0-0ubuntu0.20.04~ppa1) focal; urgency=medium
+
+  * First release with resealing
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Fri, 12 Nov 2021 22:36:38 +0100
+
 nullboot (0.0.1-0ubuntu0.20.04~ppa1) focal; urgency=medium
 
   * Initial release
