@@ -8,72 +8,94 @@ package efibootmgr
 
 import (
 	"errors"
-	"fmt"
-	"github.com/canonical/nullboot/efivars"
-	"os"
+
+	"github.com/canonical/go-efilib"
+	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
 type NoEFIVariables struct{}
 
-func (NoEFIVariables) GetVariableNames(filterGUID efivars.GUID) []string { return nil }
-func (NoEFIVariables) GetVariable(guid efivars.GUID, name string) (data []byte, attrs uint32) {
-	return nil, 0
+func (NoEFIVariables) ListVariables() ([]efi.VariableDescriptor, error) {
+	return nil, efi.ErrVarsUnavailable
 }
-func (NoEFIVariables) VariablesSupported() bool { return false }
-func (NoEFIVariables) SetVariable(guid efivars.GUID, name string, data []byte, attrs uint32, mode os.FileMode) error {
-	return errors.New("Not implemented")
+
+func (NoEFIVariables) GetVariable(guid efi.GUID, name string) ([]byte, efi.VariableAttributes, error) {
+	return nil, 0, efi.ErrVarsUnavailable
 }
-func (NoEFIVariables) DelVariable(guid efivars.GUID, name string) error {
-	return errors.New("Not implemented")
+
+func (NoEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
+	return efi.ErrVarsUnavailable
 }
-func (NoEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
+
+func (NoEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
 	return nil, errors.New("Cannot access")
 }
 
 type mockEFIVariable struct {
 	data  []byte
-	attrs uint32
-}
-type MockEFIVariables struct {
-	store map[efivars.GUID]map[string]mockEFIVariable
+	attrs efi.VariableAttributes
 }
 
-func (m MockEFIVariables) GetVariableNames(filterGUID efivars.GUID) []string {
-	var out []string
-	for name := range m.store[filterGUID] {
-		out = append(out, name)
+type MockEFIVariables struct {
+	store map[efi.VariableDescriptor]mockEFIVariable
+}
+
+func (m MockEFIVariables) ListVariables() (out []efi.VariableDescriptor, err error) {
+	for k := range m.store {
+		out = append(out, k)
 	}
-	return out
+	return out, nil
 }
-func (m MockEFIVariables) GetVariable(guid efivars.GUID, name string) (data []byte, attrs uint32) {
-	out := m.store[guid][name]
-	return out.data, out.attrs
+
+func (m MockEFIVariables) GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
+	out, ok := m.store[efi.VariableDescriptor{Name: name, GUID: guid}]
+	if !ok {
+		return nil, 0, efi.ErrVarNotExist
+	}
+	return out.data, out.attrs, nil
 }
-func (m MockEFIVariables) VariablesSupported() bool { return true }
-func (m *MockEFIVariables) SetVariable(guid efivars.GUID, name string, data []byte, attrs uint32, mode os.FileMode) error {
+
+func (m *MockEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
 	if m.store == nil {
-		m.store = make(map[efivars.GUID]map[string]mockEFIVariable)
+		m.store = make(map[efi.VariableDescriptor]mockEFIVariable)
 	}
-	if _, ok := m.store[guid]; !ok {
-		m.store[guid] = make(map[string]mockEFIVariable)
+	if len(data) == 0 {
+		delete(m.store, efi.VariableDescriptor{Name: name, GUID: guid})
+	} else {
+		m.store[efi.VariableDescriptor{Name: name, GUID: guid}] = mockEFIVariable{data, attrs}
 	}
-	m.store[guid][name] = mockEFIVariable{data, attrs}
 	return nil
 }
-func (m MockEFIVariables) DelVariable(guid efivars.GUID, name string) error {
-	if _, ok := m.store[guid][name]; !ok {
-		return fmt.Errorf("Could not delete non-existing variable %s", name)
-	}
-	delete(m.store[guid], name)
-	return nil
-}
-func (m MockEFIVariables) NewDevicePath(filepath string, options uint32) (efivars.DevicePath, error) {
+
+func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
 	file, err := appFs.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
 	file.Close()
-	return efivars.LoadOption{Data: UsbrBootCdrom}.Path(), nil
+
+	return efi.DevicePath{
+		&efi.ACPIDevicePathNode{HID: 0x0a0341d0},
+		&efi.PCIDevicePathNode{Device: 0x14, Function: 0},
+		&efi.USBDevicePathNode{ParentPortNumber: 0xb, InterfaceNumber: 0x1}}, nil
 }
 
-var UsbrBootCdrom = []byte{9, 0, 0, 0, 28, 0, 85, 0, 83, 0, 66, 0, 82, 0, 32, 0, 66, 0, 79, 0, 79, 0, 84, 0, 32, 0, 67, 0, 68, 0, 82, 0, 79, 0, 77, 0, 0, 0, 2, 1, 12, 0, 208, 65, 3, 10, 0, 0, 0, 0, 1, 1, 6, 0, 0, 20, 3, 5, 6, 0, 11, 1, 127, 255, 4, 0}
+var (
+	UsbrBootCdromOpt = &efi.LoadOption{
+		Attributes:  efi.LoadOptionActive | efi.LoadOptionHidden,
+		Description: "USBR BOOT CDROM",
+		FilePath: efi.DevicePath{
+			&efi.ACPIDevicePathNode{HID: 0x0a0341d0},
+			&efi.PCIDevicePathNode{Device: 0x14, Function: 0},
+			&efi.USBDevicePathNode{ParentPortNumber: 0xb, InterfaceNumber: 0x1}},
+		OptionalData: []byte{}}
+	UsbrBootCdromOptBytes []byte
+)
+
+func init() {
+	var err error
+	UsbrBootCdromOptBytes, err = UsbrBootCdromOpt.Bytes()
+	if err != nil {
+		panic(err)
+	}
+}

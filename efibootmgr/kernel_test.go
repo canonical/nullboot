@@ -5,17 +5,17 @@
 package efibootmgr
 
 import (
-	"github.com/canonical/nullboot/efivars"
-	"github.com/spf13/afero"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-
 	"bytes"
 	"fmt"
 	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/canonical/go-efilib"
+	"github.com/spf13/afero"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 func CheckFilesEqual(fs afero.Fs, want string, got string) error {
@@ -35,6 +35,7 @@ func CheckFilesEqual(fs afero.Fs, want string, got string) error {
 }
 
 func TestKernelManagerNewAndInstallKernels(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
@@ -43,9 +44,10 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/shimx64.efi", []byte("file a"), 0644)
 	mockvars := MockEFIVariables{
-		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {
-			"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			"Boot0001":  {UsbrBootCdrom, 42}}},
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
+		},
 	}
 	appEFIVars = &mockvars
 
@@ -55,7 +57,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	km, err := NewKernelManager()
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu")
 	if err != nil {
 		t.Fatalf("Could not create kernel manager: %v", err)
 	}
@@ -93,8 +95,8 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 		t.Fatalf("Could not read boot.csv: %v", err)
 	}
 
-	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic root=magic,Ubuntu entry for kernel 1.0-12-generic\n" +
-		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic root=magic,Ubuntu entry for kernel 1.0-1-generic\n")
+	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic root=magic,Ubuntu entry for kernel 1.0-1-generic\n" +
+		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic root=magic,Ubuntu entry for kernel 1.0-12-generic\n")
 	if want != string(data) {
 		t.Errorf("Boot entry mismatch:\nExpected:\n%v\nGot:\n%v", want, string(data))
 	}
@@ -111,13 +113,14 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	}
 
 	for i, desc := range map[int]string{2: "Ubuntu with kernel 1.0-12-generic", 3: "Ubuntu with kernel 1.0-1-generic", 1: "USBR BOOT CDROM"} {
-		if bm.entries[i].LoadOption.Desc() != desc {
-			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Desc())
+		if bm.entries[i].LoadOption.Description != desc {
+			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Description)
 		}
 
 	}
 }
 func TestKernelManager_noCmdLine(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
@@ -125,9 +128,10 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644)
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/shimx64.efi", []byte("file a"), 0644)
 	mockvars := MockEFIVariables{
-		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {
-			"BootOrder": {[]byte{1, 0, 2, 0, 3, 0}, 123},
-			"Boot0001":  {UsbrBootCdrom, 42}}},
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
+		},
 	}
 	appEFIVars = &mockvars
 
@@ -137,7 +141,7 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	km, err := NewKernelManager()
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu")
 	if err := km.InstallKernels(); err != nil {
 		t.Errorf("Could not install kernels: %v", err)
 	}
@@ -156,8 +160,8 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 		t.Fatalf("Could not read boot.csv: %v", err)
 	}
 
-	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic,Ubuntu entry for kernel 1.0-12-generic\n" +
-		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic,Ubuntu entry for kernel 1.0-1-generic\n")
+	want := ("shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-1-generic,\\kernel.efi-1.0-1-generic,Ubuntu entry for kernel 1.0-1-generic\n" +
+		"shim" + GetEfiArchitecture() + ".efi,Ubuntu with kernel 1.0-12-generic,\\kernel.efi-1.0-12-generic,Ubuntu entry for kernel 1.0-12-generic\n")
 	if want != string(data) {
 		t.Errorf("Boot entry mismatch:\nExpected:\n%v\nGot:\n%v", want, string(data))
 	}
@@ -174,14 +178,15 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 	}
 
 	for i, desc := range map[int]string{2: "Ubuntu with kernel 1.0-12-generic", 3: "Ubuntu with kernel 1.0-1-generic", 1: "USBR BOOT CDROM"} {
-		if bm.entries[i].LoadOption.Desc() != desc {
-			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Desc())
+		if bm.entries[i].LoadOption.Description != desc {
+			t.Errorf("Expected boot entry %d Description %s, got %s", i, desc, bm.entries[i].LoadOption.Description)
 		}
 
 	}
 }
 
 func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 	afero.WriteFile(memFs, "/usr/lib/linux/kernel.efi-1.0-12-generic", []byte("1.0-12-generic"), 0644)
@@ -190,11 +195,13 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/BOOTX64.CSV", []byte(""), 0644)
 	afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644)
 	mockvars := MockEFIVariables{
-		map[efivars.GUID]map[string]mockEFIVariable{efivars.GUIDGlobal: {"BootOrder": {[]byte{}, 123}}},
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{}, 123},
+		},
 	}
 	appEFIVars = &mockvars
 
-	km, err := NewKernelManager()
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu")
 	if err != nil {
 		t.Fatalf("Could not create kernel manager: %v", err)
 	}

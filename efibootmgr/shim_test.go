@@ -13,12 +13,14 @@ import (
 )
 
 func TestGetEfiArchitecture(t *testing.T) {
+	appArchitecture = ""
 	arch := GetEfiArchitecture()
 	if arch == "" {
 		t.Fatalf("Unknown architecture: '%s'", runtime.GOARCH)
 	}
 }
 func TestWriteShimFallback(t *testing.T) {
+	appArchitecture = "x64"
 	tests := []struct {
 		label string
 		input []BootEntry
@@ -29,8 +31,8 @@ func TestWriteShimFallback(t *testing.T) {
 			{"shimx64.efi", "ubuntu", "", "This is the boot entry for ubuntu"},
 			{"shimx64.efi", "Linux-Firmware-Updater", "\\fwupdx64.efi", "This is the boot entry for Linux-Firmware-Updater"},
 		},
-			"shimx64.efi,ubuntu,,This is the boot entry for ubuntu\n" +
-				"shimx64.efi,Linux-Firmware-Updater,\\fwupdx64.efi,This is the boot entry for Linux-Firmware-Updater\n",
+			"shimx64.efi,Linux-Firmware-Updater,\\fwupdx64.efi,This is the boot entry for Linux-Firmware-Updater\n" +
+				"shimx64.efi,ubuntu,,This is the boot entry for ubuntu\n",
 		},
 	}
 
@@ -50,6 +52,7 @@ func TestWriteShimFallback(t *testing.T) {
 }
 
 func TestInstallShim_NoKernelsAvailable(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 
@@ -63,6 +66,7 @@ func TestInstallShim_NoKernelsAvailable(t *testing.T) {
 }
 
 func TestInstallShim_BasicUpdate(t *testing.T) {
+	appArchitecture = "x64"
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}
 

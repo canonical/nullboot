@@ -30,13 +30,12 @@ type KernelManager struct {
 }
 
 // NewKernelManager returns a new kernel manager managing kernels in the host system
-func NewKernelManager() (*KernelManager, error) {
+func NewKernelManager(esp, sourceDir, vendor string) (*KernelManager, error) {
 	var km KernelManager
 	var err error
 
-	// FIXME: Read dirs and options from a configuration option
-	km.sourceDir = "/usr/lib/linux"
-	km.targetDir = "/boot/efi/EFI/ubuntu"
+	km.sourceDir = sourceDir
+	km.targetDir = path.Join(esp, "EFI", vendor)
 
 	if file, err := appFs.Open("/etc/kernel/cmdline"); err == nil {
 		defer file.Close()
@@ -186,7 +185,7 @@ func (km *KernelManager) CommitToBootLoader() error {
 
 	// Delete any obsolete kernels
 	for _, ev := range km.bootManager.entries {
-		if !strings.HasPrefix(ev.LoadOption.Desc(), "Ubuntu ") {
+		if !strings.HasPrefix(ev.LoadOption.Description, "Ubuntu ") {
 			continue
 		}
 		isObsolete := true
