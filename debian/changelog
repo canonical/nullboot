@@ -1,3 +1,9 @@
+nullboot (0.1.0-0ubuntu0.20.04~ppa2) focal; urgency=medium
+
+  * triggers: Update to new path
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Fri, 12 Nov 2021 23:02:49 +0100
+
 nullboot (0.1.0-0ubuntu0.20.04~ppa1) focal; urgency=medium
 
   * First release with resealing
