@@ -14,9 +14,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
+	"github.com/canonical/go-efilib"
 	"github.com/canonical/go-tpm2"
+	"github.com/canonical/tcglog-parser"
 	"github.com/snapcore/secboot"
 	secboot_efi "github.com/snapcore/secboot/efi"
 	secboot_tpm2 "github.com/snapcore/secboot/tpm2"
@@ -31,6 +34,7 @@ const (
 )
 
 var (
+	efiComputePeImageDigest                       = efi.ComputePeImageDigest
 	sbefiAddBootManagerProfile                    = secboot_efi.AddBootManagerProfile
 	sbefiAddSecureBootPolicyProfile               = secboot_efi.AddSecureBootPolicyProfile
 	sbGetAuxiliaryKeyFromKernel                   = secboot.GetAuxiliaryKeyFromKernel
@@ -43,173 +47,15 @@ var (
 )
 
 type pcrProfileComputeContext struct {
-	assets      *TrustedAssets
 	nOpen       int
 	failedPaths []string
 }
 
-// efiImageFile wraps a file handle and is used by the PCR profile generation
-// to access boot assets, and to check that the boot assets included in the PCR
+// trustedEFIImage is an implementation of secboot_efi.Image that makes
+// use of hashedFile in order to ensure that boot assets added to a PCR
 // profile are trusted.
-//
-// During read operations, leaf hashes are computed on a block-by-block basis.
-// If a block's hash hasn't previously been computed, then it is recorded. If it
-// has previously been computed, then the hash is compared against the previously
-// recoreded one.
-//
-// During close, any previously unread blocks are read in order to compute their
-// leaf hashes and construct a hash tree in order to generate a root hash, which
-// is then compared to the list of trusted asset hashes via TrustedAssets. If the
-// root hash is not included in the list of trusted hashes, then the generated PCR
-// profile is rejected by signalling the failure via pcrProfileComputeContext.
-//
-// This verification is done without having to read and keep entire PE images in
-// memory, which would be the case if we only stored a flat-file hash. See the
-// documentation for TrustedAssets to see the tradeoff of not storing the hash
-// tree though.
-type efiImageFile struct {
-	context          *pcrProfileComputeContext
-	leafHashes       [][]byte
-	cachedBlockIndex int64
-	cachedBlock      []byte
-	file             File
-	sz               int64
-}
-
-func newEfiImageFile(context *pcrProfileComputeContext, f File) (*efiImageFile, error) {
-	info, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	return &efiImageFile{
-		context:          context,
-		leafHashes:       make([][]byte, (info.Size()+(hashBlockSize-1))/hashBlockSize),
-		cachedBlockIndex: -1,
-		file:             f,
-		sz:               info.Size()}, nil
-}
-
-func (f *efiImageFile) readAndCacheBlock(i int64) error {
-	if i == f.cachedBlockIndex {
-		// Reading from the cached block
-		return nil
-	}
-
-	if i >= int64(len(f.leafHashes)) {
-		// Huh, out of range
-		return io.EOF
-	}
-
-	// Read the whole block
-	r := io.NewSectionReader(f.file, i*hashBlockSize, hashBlockSize)
-
-	var block [hashBlockSize]byte
-	n, err := io.ReadFull(r, block[:])
-	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
-		// Handle io.ErrUnexpectedEOF later.
-		return err
-	}
-
-	// Cache this block to speed up small reads
-	f.cachedBlockIndex = i
-	f.cachedBlock = block[:n]
-
-	// Hash the block
-	h := f.context.assets.alg().New()
-	h.Write(block[:])
-
-	if len(f.leafHashes[i]) == 0 {
-		// This is the first time we read this block.
-		f.leafHashes[i] = h.Sum(nil)
-	} else if !bytes.Equal(h.Sum(nil), f.leafHashes[i]) {
-		// We've read this block before, and it has changed.
-		return fmt.Errorf("hash check fail for block %d", i)
-	}
-
-	return err
-}
-
-func (f *efiImageFile) ReadAt(p []byte, off int64) (n int, err error) {
-	// Calculate the starting block and number of blocks.
-	start := ((off + hashBlockSize) / hashBlockSize) - 1
-	end := ((off + int64(len(p)) + hashBlockSize) / hashBlockSize)
-	num := end - start
-
-	// Read and hash each block.
-	for i := start; i < start+num; i++ {
-		if err := f.readAndCacheBlock(i); err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
-			break
-		}
-
-		data := f.cachedBlock
-		if n == 0 {
-			off0 := off - (start * hashBlockSize)
-			data = data[off0:]
-		}
-		sz := len(p) - n
-		if sz < len(data) {
-			data = data[:sz]
-		}
-
-		copy(p[n:], data)
-		n += len(data)
-
-		if err != nil {
-			break
-		}
-	}
-
-	if n == 0 {
-		return 0, io.EOF
-	}
-	return n, nil
-}
-
-func (f *efiImageFile) Close() error {
-	h := f.context.assets.alg().New()
-
-	// Loop over missing leaf hashes.
-	for i, d := range f.leafHashes {
-		if len(d) > 0 {
-			continue
-		}
-
-		// Hash missing block.
-		r := io.NewSectionReader(f.file, int64(i*hashBlockSize), hashBlockSize)
-
-		var block [hashBlockSize]byte
-		_, err := io.ReadFull(r, block[:])
-		if err == io.EOF {
-			break
-		}
-		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
-			break
-		}
-
-		h.Reset()
-		h.Write(block[:])
-		f.leafHashes[i] = h.Sum(nil)
-
-		if err != nil {
-			break
-		}
-	}
-
-	// Compute root hash and make sure we trust this file.
-	if !f.context.assets.checkLeafHashes(f.leafHashes) {
-		f.context.failedPaths = append(f.context.failedPaths, f.file.Name())
-	}
-
-	f.context.nOpen--
-	return f.file.Close()
-}
-
-func (f *efiImageFile) Size() int64 {
-	return f.sz
-}
-
 type trustedEFIImage struct {
+	assets  *TrustedAssets
 	context *pcrProfileComputeContext
 	path    string
 }
@@ -236,11 +82,16 @@ func (i *trustedEFIImage) Open() (file interface {
 		}
 	}()
 
-	return newEfiImageFile(i.context, f)
+	return newCheckedHashedFile(f, i.assets, func(trusted bool) {
+		if !trusted {
+			i.context.failedPaths = append(i.context.failedPaths, i.path)
+		}
+		i.context.nOpen--
+	})
 }
 
-func newTrustedEFIImage(context *pcrProfileComputeContext, path string) *trustedEFIImage {
-	return &trustedEFIImage{context, path}
+func newTrustedEFIImage(assets *TrustedAssets, context *pcrProfileComputeContext, path string) *trustedEFIImage {
+	return &trustedEFIImage{assets, context, path}
 }
 
 func resolveLink(path string) (string, error) {
@@ -371,7 +222,7 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 		return nil
 	}
 
-	context := &pcrProfileComputeContext{assets: assets}
+	context := new(pcrProfileComputeContext)
 
 	shimBase := "shim" + GetEfiArchitecture() + ".efi"
 
@@ -387,7 +238,7 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 
 		roots = append(roots, &secboot_efi.ImageLoadEvent{
 			Source: secboot_efi.Firmware,
-			Image:  newTrustedEFIImage(context, path)})
+			Image:  newTrustedEFIImage(assets, context, path)})
 	}
 
 	var kernels []*secboot_efi.ImageLoadEvent
@@ -410,7 +261,7 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 
 			kernels = append(kernels, &secboot_efi.ImageLoadEvent{
 				Source: secboot_efi.Shim,
-				Image:  newTrustedEFIImage(context, path)})
+				Image:  newTrustedEFIImage(assets, context, path)})
 		}
 	}
 
@@ -457,6 +308,86 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 	w := secboot_tpm2.NewFileSealedKeyObjectWriter(filepath.Join(esp, keyFilePath))
 	if err := sbtpmSealedKeyObjectWriteAtomic(k, w); err != nil {
 		return fmt.Errorf("cannot write updated sealed key object: %w", err)
+	}
+
+	return nil
+}
+
+// TrustCurrentBoot adds the assets used in the current boot to the list of boot
+// assets trusted for adding to PCR profiles with ResealKey. It works by mapping
+// EV_EFI_BOOT_SERVICES_APPLICATION events from the TCG log to files stored in the
+// ESP.
+func TrustCurrentBoot(assets *TrustedAssets, esp string) error {
+	f, err := appFs.Open("/sys/kernel/security/tpm0/binary_bios_measurements")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	eventLog, err := tcglog.ReadLog(f, &tcglog.LogOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot read TCG log: %v", err)
+	}
+
+	for _, event := range eventLog.Events {
+		if event.PCRIndex != 4 {
+			continue
+		}
+		if event.EventType != tcglog.EventTypeEFIBootServicesApplication {
+			continue
+		}
+
+		data, ok := event.Data.(*tcglog.EFIImageLoadEvent)
+		if !ok {
+			log.Println("Invalid event data for EV_EFI_BOOT_SERVICES_APPLICATION event")
+		}
+
+		fpdp, ok := data.DevicePath[len(data.DevicePath)-1].(efi.FilePathDevicePathNode)
+		if !ok {
+			// Ignore application not stored in a filesystem
+			continue
+		}
+
+		components := strings.Split(string(fpdp), "\\")
+		path := strings.Join(components, string(os.PathSeparator))
+
+		err := func() error {
+			f, err := appFs.Open(filepath.Join(esp, path))
+			switch {
+			case os.IsNotExist(err):
+				log.Println("Missing file:", filepath.Join(esp, path))
+				return nil
+			case err != nil:
+				return err
+			}
+
+			peHashMatch := false
+
+			hf, err := newHashedFile(f, assets.alg(), func(leafHashes [][]byte) {
+				if !peHashMatch {
+					return
+				}
+				assets.trustLeafHashes(leafHashes)
+			})
+			if err != nil {
+				f.Close()
+				return err
+			}
+			defer hf.Close()
+
+			digest, err := efiComputePeImageDigest(crypto.SHA256, hf, hf.Size())
+			if err != nil {
+				return fmt.Errorf("cannot compute PE image hash: %v", err)
+			}
+			if bytes.Equal(digest, event.Digests[tpm2.HashAlgorithmSHA256]) {
+				peHashMatch = true
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

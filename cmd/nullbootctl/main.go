@@ -33,6 +33,11 @@ func main() {
 		}
 	}
 
+	if err := efibootmgr.TrustCurrentBoot(assets, esp); err != nil {
+		log.Println("cannot trust boot assets used for current boot:", err)
+		os.Exit(1)
+	}
+
 	km, err := efibootmgr.NewKernelManager(esp, kernelSourceDir, vendor)
 	if err != nil {
 		log.Print(err)

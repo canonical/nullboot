@@ -118,13 +118,18 @@ type loadedTrustedAssets struct {
 // are hashed by producing a hash tree with a 4k block size. If a file's
 // size is not a multiple of 4k, the last block is padded with zeros.
 //
-// The hash tree is not stored anywhere - only the root hash is stored. The
-// hash tree is reconstructed when the file is read - see efiImageFile. In
-// order to verify any blocks, the entire file has to eventually be read in
-// order to reconstruct the entire hash tree. This is a tradeoff between
+// The hash tree is not stored anywhere - only the root hash is stored.
+// In order to verify that a file's contents are trusted, the leaf hashes
+// are constructed when the file is read and then closed (see hashedFile)
+// and the rest of the hash tree is reconstructed by calling checkLeafHashes.
+// In order to verify any blocks, the entire file has to eventually be read
+// in order to reconstruct the entire hash tree. This is a tradeoff between
 // having to read an entire file in order to verify a few blocks, and not
 // having to read an entire file in order to verify a few blocks, but having
 // to store the entire hash tree somewhere.
+//
+// Use newCheckedHashedFile to have a file checked against the set of trusted
+// boot assets.
 type TrustedAssets struct {
 	loaded    loadedTrustedAssets
 	newAssets [][]byte
@@ -152,6 +157,12 @@ func (t *TrustedAssets) maybeAddHash(d []byte) {
 	}
 
 	t.loaded.Hashes = append(t.loaded.Hashes, d)
+}
+
+func (t *TrustedAssets) trustLeafHashes(hashes [][]byte) {
+	d := computeRootHash(t.alg(), hashes)
+	t.maybeAddHash(d)
+	t.newAssets = append(t.newAssets, d)
 }
 
 func (t *TrustedAssets) trustFile(path string) error {
@@ -183,11 +194,7 @@ func (t *TrustedAssets) trustFile(path string) error {
 		}
 	}
 
-	d := computeRootHash(t.alg(), hashes)
-
-	t.maybeAddHash(d)
-	t.newAssets = append(t.newAssets, d)
-
+	t.trustLeafHashes(hashes)
 	return nil
 }
 
@@ -292,4 +299,14 @@ func ReadTrustedAssets() (*TrustedAssets, error) {
 	}
 
 	return assets, nil
+}
+
+// newCheckedHashedFile wraps a file handle and calls the supplied
+// closeNotify callback when the file is closed with an indication
+// as to whether the file's contents are included in the supplied set
+// of trusted boot assets
+func newCheckedHashedFile(f File, assets *TrustedAssets, closeNotify func(bool)) (*hashedFile, error) {
+	return newHashedFile(f, assets.alg(), func(leafHashes [][]byte) {
+		closeNotify(assets.checkLeafHashes(leafHashes))
+	})
 }
