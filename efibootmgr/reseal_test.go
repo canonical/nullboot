@@ -5,7 +5,8 @@
 package efibootmgr
 
 import (
-	"errors"
+	"bytes"
+	"crypto"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/go-efilib"
 	"github.com/canonical/go-tpm2"
 	"github.com/canonical/go-tpm2/linux"
+	"github.com/canonical/tcglog-parser"
 	"github.com/snapcore/secboot"
 	secboot_efi "github.com/snapcore/secboot/efi"
 	secboot_tpm2 "github.com/snapcore/secboot/tpm2"
@@ -104,111 +106,42 @@ func (*resealSuite) mockEfiArch(arch string) (restore func()) {
 	return func() {
 		appArchitecture = orig
 	}
+
 }
 
 var _ = check.Suite(&resealSuite{})
 
-type testEfiImageFileReadBlock struct {
-	off int64
-	sz  int64
-	n   int64
-}
+func (s *resealSuite) TestTrustedEfiImageOk(c *check.C) {
+	s.writeFile(c, "/foo", 0, 43, 50)
 
-func (s *resealSuite) testEfiImageFile(c *check.C, path string, blocks []testEfiImageFileReadBlock) {
 	assets, err := ReadTrustedAssets()
 	c.Assert(err, check.IsNil)
-
 	c.Check(assets.TrustNewFromDir("/"), check.IsNil)
 
-	context := &pcrProfileComputeContext{assets: assets, nOpen: 1}
+	context := new(pcrProfileComputeContext)
+	img := newTrustedEFIImage(assets, context, "/foo")
 
-	f, err := appFs.Open(path)
-	c.Assert(err, check.IsNil)
-	defer f.Close()
-
-	ef, err := newEfiImageFile(context, f)
+	f, err := img.Open()
 	c.Assert(err, check.IsNil)
 
-	for _, block := range blocks {
-		total := block.sz * block.n
-
-		expected := make([]byte, total)
-		data := make([]byte, total)
-
-		for i := int64(0); i < total; {
-			n, err := f.ReadAt(expected[i:i+block.sz], i+block.off)
-			if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) || int64(n) < block.sz {
-				break
-			}
-			c.Check(err, check.IsNil)
-			i += int64(n)
-		}
-
-		for i := int64(0); i < total; {
-			n, err := ef.ReadAt(data[i:i+block.sz], i+block.off)
-			if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) || int64(n) < block.sz {
-				break
-			}
-			c.Check(err, check.IsNil)
-			i += int64(n)
-		}
-
-		c.Check(data, check.DeepEquals, expected)
-	}
-
-	c.Check(ef.Close(), check.IsNil)
+	c.Check(f.Close(), check.IsNil)
 	c.Check(context.nOpen, check.Equals, 0)
-	c.Check(context.failedPaths, check.DeepEquals, []string(nil))
+	c.Check(context.failedPaths, check.IsNil)
 }
 
-func (s *resealSuite) TestEfiImageFileReadFullSmallReads(c *check.C) {
-	s.writeFile(c, "/foo", 0, 199, 3500)
-	s.testEfiImageFile(c, "/foo", []testEfiImageFileReadBlock{
-		{off: 0, sz: 10, n: 69650},
-	})
-}
-
-func (s *resealSuite) TestEfiImageFileReadFullLargeReads(c *check.C) {
-	s.writeFile(c, "/foo", 0, 199, 3500)
-	s.testEfiImageFile(c, "/foo", []testEfiImageFileReadBlock{
-		{off: 0, sz: 69650, n: 10},
-	})
-}
-
-func (s *resealSuite) TestEfiImageFileReadSparse(c *check.C) {
-	s.writeFile(c, "/foo", 0, 199, 3500)
-	s.testEfiImageFile(c, "/foo", []testEfiImageFileReadBlock{
-		{off: 500, sz: 10, n: 100},
-		{off: 20000, sz: 500, n: 20},
-	})
-}
-
-func (s *resealSuite) TestEfiImageFileReadUntrusted(c *check.C) {
-	s.writeFile(c, "/foo", 0, 43, 4000)
+func (s *resealSuite) TestTrustedEfiImageBad(c *check.C) {
+	s.writeFile(c, "/foo", 0, 43, 50)
 
 	assets, err := ReadTrustedAssets()
 	c.Assert(err, check.IsNil)
 
-	context := &pcrProfileComputeContext{assets: assets, nOpen: 1}
+	context := new(pcrProfileComputeContext)
+	img := newTrustedEFIImage(assets, context, "/foo")
 
-	f, err := appFs.Open("/foo")
-	c.Assert(err, check.IsNil)
-	defer f.Close()
-
-	ef, err := newEfiImageFile(context, f)
+	f, err := img.Open()
 	c.Assert(err, check.IsNil)
 
-	for i := int64(0); ; {
-		var data [30]byte
-		n, err := ef.ReadAt(data[:], i)
-		if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) || n < 30 {
-			break
-		}
-		c.Check(err, check.IsNil)
-		i += int64(n)
-	}
-
-	c.Check(ef.Close(), check.IsNil)
+	c.Check(f.Close(), check.IsNil)
 	c.Check(context.nOpen, check.Equals, 0)
 	c.Check(context.failedPaths, check.DeepEquals, []string{"/foo"})
 }
@@ -800,4 +733,248 @@ func (s *resealSuite) TestResealKeyUnhappyNoTPM(c *check.C) {
 		noTpm: true,
 	})
 	c.Check(err, check.ErrorMatches, "no TPM2 device is available")
+}
+
+// The TCG log writing code is borrowed from github.com:snapcore/secboot tools/make-efi-testdata/logs.go
+// to avoid checking in a binary log
+
+type event struct {
+	PCRIndex  tcglog.PCRIndex
+	EventType tcglog.EventType
+	Data      tcglog.EventData
+}
+
+type eventData interface {
+	Write(w io.Writer) error
+}
+
+type bytesData []byte
+
+func (d bytesData) Write(w io.Writer) error {
+	_, err := w.Write(d)
+	return err
+}
+
+type logWriter struct {
+	algs   []tpm2.HashAlgorithmId
+	events []*tcglog.Event
+}
+
+func newCryptoAgileLogWriter() *logWriter {
+	event := &tcglog.Event{
+		PCRIndex:  0,
+		EventType: tcglog.EventTypeNoAction,
+		Digests:   tcglog.DigestMap{tpm2.HashAlgorithmSHA1: make(tcglog.Digest, tpm2.HashAlgorithmSHA1.Size())},
+		Data: &tcglog.SpecIdEvent03{
+			SpecVersionMajor: 2,
+			UintnSize:        2,
+			DigestSizes: []tcglog.EFISpecIdEventAlgorithmSize{
+				{AlgorithmId: tpm2.HashAlgorithmSHA1, DigestSize: uint16(tpm2.HashAlgorithmSHA1.Size())},
+				{AlgorithmId: tpm2.HashAlgorithmSHA256, DigestSize: uint16(tpm2.HashAlgorithmSHA256.Size())}}}}
+
+	return &logWriter{
+		algs:   []tpm2.HashAlgorithmId{tpm2.HashAlgorithmSHA1, tpm2.HashAlgorithmSHA256},
+		events: []*tcglog.Event{event}}
+}
+
+func (w *logWriter) hashLogExtendEvent(data eventData, event *event) {
+	ev := &tcglog.Event{
+		PCRIndex:  event.PCRIndex,
+		EventType: event.EventType,
+		Digests:   make(tcglog.DigestMap),
+		Data:      event.Data}
+
+	for _, alg := range w.algs {
+		h := alg.NewHash()
+		if err := data.Write(h); err != nil {
+			panic(err)
+		}
+		ev.Digests[alg] = h.Sum(nil)
+	}
+
+	w.events = append(w.events, ev)
+
+}
+
+func (s *resealSuite) writeMockTcglog(c *check.C) {
+	w := newCryptoAgileLogWriter()
+
+	{
+		data := &tcglog.SeparatorEventData{Value: tcglog.SeparatorEventNormalValue}
+		w.hashLogExtendEvent(data, &event{
+			PCRIndex:  7,
+			EventType: tcglog.EventTypeSeparator,
+			Data:      data})
+	}
+	{
+		data := tcglog.EFICallingEFIApplicationEvent
+		w.hashLogExtendEvent(data, &event{
+			PCRIndex:  4,
+			EventType: tcglog.EventTypeEFIAction,
+			Data:      data})
+	}
+	for _, pcr := range []tcglog.PCRIndex{0, 1, 2, 3, 4, 5, 6} {
+		data := &tcglog.SeparatorEventData{Value: tcglog.SeparatorEventNormalValue}
+		w.hashLogExtendEvent(data, &event{
+			PCRIndex:  pcr,
+			EventType: tcglog.EventTypeSeparator,
+			Data:      data})
+	}
+	{
+		pe := bytesData("mock shim PE")
+		data := &tcglog.EFIImageLoadEvent{
+			LocationInMemory: 0x6556c018,
+			LengthInMemory:   955072,
+			DevicePath: efi.DevicePath{
+				&efi.ACPIDevicePathNode{
+					HID: 0x0a0341d0,
+					UID: 0x0},
+				&efi.PCIDevicePathNode{
+					Function: 0x0,
+					Device:   0x1d},
+				&efi.PCIDevicePathNode{
+					Function: 0x0,
+					Device:   0x0},
+				&efi.NVMENamespaceDevicePathNode{
+					NamespaceID:   0x1,
+					NamespaceUUID: 0x0},
+				&efi.HardDriveDevicePathNode{
+					PartitionNumber: 1,
+					PartitionStart:  0x800,
+					PartitionSize:   0x100000,
+					Signature:       efi.MakeGUID(0x66de947b, 0xfdb2, 0x4525, 0xb752, [...]uint8{0x30, 0xd6, 0x6b, 0xb2, 0xb9, 0x60}),
+					MBRType:         efi.GPT},
+				efi.FilePathDevicePathNode("\\EFI\\ubuntu\\shimx64.efi")}}
+		w.hashLogExtendEvent(pe, &event{
+			PCRIndex:  4,
+			EventType: tcglog.EventTypeEFIBootServicesApplication,
+			Data:      data})
+	}
+	{
+		pe := bytesData("mock kernel PE")
+		data := &tcglog.EFIImageLoadEvent{
+			DevicePath: efi.DevicePath{efi.FilePathDevicePathNode("\\EFI\\ubuntu\\kernel.efi-1.0-1-generic")}}
+		w.hashLogExtendEvent(pe, &event{
+			PCRIndex:  4,
+			EventType: tcglog.EventTypeEFIBootServicesApplication,
+			Data:      data})
+	}
+
+	f, err := s.fs.OpenFile("/sys/kernel/security/tpm0/binary_bios_measurements", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	c.Assert(err, check.IsNil)
+	defer f.Close()
+
+	c.Check(tcglog.WriteLog(f, w.events), check.IsNil)
+}
+
+func (s *resealSuite) mockEfiComputePeImageDigest(fn func(alg crypto.Hash, r io.ReaderAt, sz int64) ([]byte, error)) (restore func()) {
+	orig := efiComputePeImageDigest
+	efiComputePeImageDigest = fn
+
+	return func() {
+		efiComputePeImageDigest = orig
+	}
+}
+
+func (s *resealSuite) TestTrustCurrentBoot(c *check.C) {
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/shimx64.efi", []byte("shim1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
+
+	s.writeMockTcglog(c)
+
+	restore := s.mockEfiComputePeImageDigest(func(alg crypto.Hash, r io.ReaderAt, sz int64) ([]byte, error) {
+		r2 := io.NewSectionReader(r, 0, sz)
+		b, err := ioutil.ReadAll(r2)
+		c.Check(err, check.IsNil)
+
+		switch {
+		case bytes.Equal(b, []byte("shim1")):
+			return decodeHexString(c, "93c294bd9d372cf76e3cfd6f66a93fd2586aeb0406677ea0df104349b2ec093d"), nil
+		case bytes.Equal(b, []byte("kernel1")):
+			return decodeHexString(c, "54a5737f95928a359ba326bda6405a8e91fd06869cdb76f7f53aae83c1050308"), nil
+		default:
+			c.Fatal("invalid file")
+		}
+		return nil, nil
+	})
+	defer restore()
+
+	assets := newTrustedAssets()
+
+	c.Check(TrustCurrentBoot(assets, "/boot/efi"), check.IsNil)
+
+	c.Check(assets.loaded.Hashes, check.DeepEquals, [][]byte{
+		decodeHexString(c, "efbef08d5d3787d609ec6b55fabc36c7f212140b97a88606a39dc8f732368147"),
+		decodeHexString(c, "7e8c4310bd1e228888917fb5f87920426dbecd64ea7d6c2256740f80e39dcf6f")})
+	c.Check(assets.newAssets, check.DeepEquals, [][]byte{
+		decodeHexString(c, "efbef08d5d3787d609ec6b55fabc36c7f212140b97a88606a39dc8f732368147"),
+		decodeHexString(c, "7e8c4310bd1e228888917fb5f87920426dbecd64ea7d6c2256740f80e39dcf6f")})
+}
+
+func (s *resealSuite) TestTrustCurrentBootRejectPeHashMismatch(c *check.C) {
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/shimx64.efi", []byte("shim1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
+
+	s.writeMockTcglog(c)
+
+	restore := s.mockEfiComputePeImageDigest(func(alg crypto.Hash, r io.ReaderAt, sz int64) ([]byte, error) {
+		r2 := io.NewSectionReader(r, 0, sz)
+		b, err := ioutil.ReadAll(r2)
+		c.Check(err, check.IsNil)
+
+		switch {
+		case bytes.Equal(b, []byte("shim1")):
+			return decodeHexString(c, "93c294bd9d372cf76e3cfd6f66a93fd2586aeb0406677ea0df104349b2ec093f"), nil
+		case bytes.Equal(b, []byte("kernel1")):
+			return decodeHexString(c, "54a5737f95928a359ba326bda6405a8e91fd06869cdb76f7f53aae83c1050308"), nil
+		default:
+			c.Fatal("invalid file")
+		}
+		return nil, nil
+	})
+	defer restore()
+
+	assets := newTrustedAssets()
+
+	c.Check(TrustCurrentBoot(assets, "/boot/efi"), check.IsNil)
+
+	c.Check(assets.loaded.Hashes, check.DeepEquals, [][]byte{
+		decodeHexString(c, "7e8c4310bd1e228888917fb5f87920426dbecd64ea7d6c2256740f80e39dcf6f")})
+	c.Check(assets.newAssets, check.DeepEquals, [][]byte{
+		decodeHexString(c, "7e8c4310bd1e228888917fb5f87920426dbecd64ea7d6c2256740f80e39dcf6f")})
+}
+
+func (s *resealSuite) TestTrustCurrentBootRejectMissing(c *check.C) {
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/shimx64.efi", []byte("shim1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
+
+	s.writeMockTcglog(c)
+
+	restore := s.mockEfiComputePeImageDigest(func(alg crypto.Hash, r io.ReaderAt, sz int64) ([]byte, error) {
+		r2 := io.NewSectionReader(r, 0, sz)
+		b, err := ioutil.ReadAll(r2)
+		c.Check(err, check.IsNil)
+
+		switch {
+		case bytes.Equal(b, []byte("shim1")):
+			return decodeHexString(c, "93c294bd9d372cf76e3cfd6f66a93fd2586aeb0406677ea0df104349b2ec093d"), nil
+		case bytes.Equal(b, []byte("kernel1")):
+			return decodeHexString(c, "54a5737f95928a359ba326bda6405a8e91fd06869cdb76f7f53aae83c1050308"), nil
+		default:
+			c.Fatal("invalid file")
+		}
+		return nil, nil
+	})
+	defer restore()
+
+	assets := newTrustedAssets()
+
+	c.Check(TrustCurrentBoot(assets, "/boot/efi"), check.IsNil)
+
+	c.Check(assets.loaded.Hashes, check.DeepEquals, [][]byte{
+		decodeHexString(c, "efbef08d5d3787d609ec6b55fabc36c7f212140b97a88606a39dc8f732368147")})
+	c.Check(assets.newAssets, check.DeepEquals, [][]byte{
+		decodeHexString(c, "efbef08d5d3787d609ec6b55fabc36c7f212140b97a88606a39dc8f732368147")})
 }
