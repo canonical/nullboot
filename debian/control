@@ -19,5 +19,7 @@ Package: nullboot
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Built-Using: shim-signed (= ${shim-signed:Version}), ${misc:Built-Using}
+Protected: yes
+XB-Important: yes
 Description: A UEFI boot entry manager
  TODO: long description
