@@ -1,4 +1,4 @@
-nullboot (0.1.1-0ubuntu0.20.04~ppa1) jammy; urgency=medium
+nullboot (0.1.1-0ubuntu0.20.04~ppa2) focal; urgency=medium
 
   [ Chris Coulson ]
   * Trust boot assets used in the current boot
