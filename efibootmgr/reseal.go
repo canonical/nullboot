@@ -340,6 +340,7 @@ func TrustCurrentBoot(assets *TrustedAssets, esp string) error {
 		data, ok := event.Data.(*tcglog.EFIImageLoadEvent)
 		if !ok {
 			log.Println("Invalid event data for EV_EFI_BOOT_SERVICES_APPLICATION event")
+			continue
 		}
 
 		fpdp, ok := data.DevicePath[len(data.DevicePath)-1].(efi.FilePathDevicePathNode)
