@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/transform"
 	"io"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -46,13 +47,26 @@ func GetEfiArchitecture() string {
 
 // WriteShimFallbackToFile opens the specified path in UTF-16LE and then calls WriteShimFallback
 func WriteShimFallbackToFile(path string, entries []BootEntry) error {
-	file, err := appFs.Create(path)
+	file, err := appFs.TempFile(filepath.Dir(path), "."+filepath.Base(path)+".")
 	if err != nil {
 		return fmt.Errorf("could not open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func() {
+		name := file.Name()
+		file.Close()
+		if err != nil {
+			appFs.Remove(name)
+		}
+	}()
 	writer := transform.NewWriter(file, unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder())
-	return WriteShimFallback(writer, entries)
+	if err = WriteShimFallback(writer, entries); err != nil {
+		return err
+	}
+	if err := appFs.Rename(file.Name(), path); err != nil {
+		return err
+	}
+
+	return err
 }
 
 // WriteShimFallback writes out a BOOT*.CSV for the shim fallback loader to the specified writer.

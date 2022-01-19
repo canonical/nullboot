@@ -57,7 +57,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu")
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
 	if err != nil {
 		t.Fatalf("Could not create kernel manager: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu")
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
 	if err := km.InstallKernels(); err != nil {
 		t.Errorf("Could not install kernels: %v", err)
 	}
@@ -200,8 +200,11 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 		},
 	}
 	appEFIVars = &mockvars
-
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu")
+	bm, err := NewBootManagerFromSystem()
+	if err != nil {
+		t.Fatalf("Could not create boot manager: %v", err)
+	}
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
 	if err != nil {
 		t.Fatalf("Could not create kernel manager: %v", err)
 	}
