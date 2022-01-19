@@ -1,3 +1,13 @@
+nullboot (0.2.0-0ubuntu0.20.04~ppa1) focal; urgency=medium
+
+  * Use /boot/efi as the ESP location once again
+  * Add -no-tpm and -no-efivars flags
+  * Atomically update the BOOT.CSV file
+  * postinst: Only run nullbootctl if BOOT.CSV exists already
+  * postinst: Add missing debhelper token
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 19 Jan 2022 12:22:14 +0100
+
 nullboot (0.1.1-0ubuntu0.20.04~ppa2) focal; urgency=medium
 
   [ Chris Coulson ]
