@@ -21,5 +21,7 @@ Depends: ${misc:Depends}, ${shlibs:Depends}
 Built-Using: shim-signed (= ${shim-signed:Version}), ${misc:Built-Using}
 Protected: yes
 XB-Important: yes
-Description: A UEFI boot entry manager
- TODO: long description
+Description: UEFI boot entry manager
+ nullboot installs kernel.efi binaries to the EFI system partition,
+ registers them with the shim fallback loader and the UEFI boot order,
+ and reseals the system for new kernel versions.
