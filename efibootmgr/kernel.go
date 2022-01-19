@@ -20,22 +20,23 @@ import (
 // It will update or install shim, copy in any new kernels,
 // remove old kernels, and configure boot in shim and BDS.
 type KernelManager struct {
-	sourceDir     string      // sourceDir is the location to copy kernels from
-	targetDir     string      // targetDir is a vendor directory on the ESP
-	sourceKernels []string    // kernels in sourceDir
-	targetKernels []string    // kernels in targetDir
-	bootEntries   []BootEntry // boot entries filled by InstallKernels
-	kernelOptions string      // options to pass to kernel
-	bootManager   BootManager // The EFI boot manager
+	sourceDir     string       // sourceDir is the location to copy kernels from
+	targetDir     string       // targetDir is a vendor directory on the ESP
+	sourceKernels []string     // kernels in sourceDir
+	targetKernels []string     // kernels in targetDir
+	bootEntries   []BootEntry  // boot entries filled by InstallKernels
+	kernelOptions string       // options to pass to kernel
+	bootManager   *BootManager // The EFI boot manager
 }
 
 // NewKernelManager returns a new kernel manager managing kernels in the host system
-func NewKernelManager(esp, sourceDir, vendor string) (*KernelManager, error) {
+func NewKernelManager(esp, sourceDir, vendor string, bootManager *BootManager) (*KernelManager, error) {
 	var km KernelManager
 	var err error
 
 	km.sourceDir = sourceDir
 	km.targetDir = path.Join(esp, "EFI", vendor)
+	km.bootManager = bootManager
 
 	if file, err := appFs.Open("/etc/kernel/cmdline"); err == nil {
 		defer file.Close()
@@ -55,10 +56,7 @@ func NewKernelManager(esp, sourceDir, vendor string) (*KernelManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	km.bootManager, err = NewBootManagerFromSystem()
-	if err != nil {
-		return nil, err
-	}
+
 	return &km, nil
 }
 
@@ -167,6 +165,10 @@ func (km *KernelManager) CommitToBootLoader() error {
 	// We completely own the shim fallback file, so just write it
 	if err := WriteShimFallbackToFile(path.Join(km.targetDir, "BOOT"+strings.ToUpper(GetEfiArchitecture())+".CSV"), km.bootEntries); err != nil {
 		log.Printf("Failed to configure shim fallback loader: %v", err)
+	}
+
+	if km.bootManager == nil {
+		return nil
 	}
 
 	log.Print("Configuring UEFI boot device selection")
