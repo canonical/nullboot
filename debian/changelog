@@ -1,3 +1,10 @@
+nullboot (0.1.1-0ubuntu0.20.04~ppa1) jammy; urgency=medium
+
+  [ Chris Coulson ]
+  * Trust boot assets used in the current boot
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 19 Jan 2022 10:35:38 +0100
+
 nullboot (0.1.0-0ubuntu0.20.04~ppa2) focal; urgency=medium
 
   * triggers: Update to new path
