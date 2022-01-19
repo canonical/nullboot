@@ -1,5 +1,7 @@
 #!/bin/sh
 set -e
 if [ "$1" = "triggered" ] || [ "$1" = "configure" ]; then
-    nullbootctl
+    if [ -e "/boot/efi/EFI/ubuntu/BOOTX64.CSV" ]; then
+        nullbootctl
+    fi
 fi
