@@ -13,7 +13,7 @@ func main() {
 	flag.Parse()
 
 	const (
-		esp             = "/run/mnt/ubuntu-seed"
+		esp             = "/boot/efi"
 		shimSourceDir   = "/usr/lib/nullboot/shim"
 		kernelSourceDir = "/usr/lib/linux/efi"
 		vendor          = "ubuntu"
