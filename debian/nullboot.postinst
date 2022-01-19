@@ -5,3 +5,5 @@ if [ "$1" = "triggered" ] || [ "$1" = "configure" ]; then
         nullbootctl
     fi
 fi
+
+#DEBHELPER#
