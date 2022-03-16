@@ -1,3 +1,10 @@
+nullboot (0.2.1-0ubuntu1) jammy; urgency=medium
+
+  * Initial upload to main archive
+  * Add missing continue for invalid EV_EFI_BOOT_SERVICES_APPLICATION
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 16 Mar 2022 10:26:08 +0100
+
 nullboot (0.2.0-0ubuntu0.20.04~ppa1) focal; urgency=medium
 
   * Use /boot/efi as the ESP location once again
