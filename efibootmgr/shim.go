@@ -83,7 +83,13 @@ func WriteShimFallback(w io.Writer, entries []BootEntry) error {
 			return fmt.Errorf("entry '%s' contains ',' in one of the attributes, this is not supported", entry.Label)
 		}
 
-		_, err := fmt.Fprintf(w, "%s,%s,%s,%s\n", entry.Filename, entry.Label, entry.Options, entry.Description)
+		// We have an empty space after Options, because if there is no space in the options, shim
+		// does not seem to parse them at all.
+		var options = entry.Options
+		if options != "" {
+			options += " "
+		}
+		_, err := fmt.Fprintf(w, "%s,%s,%s,%s\n", entry.Filename, entry.Label, options, entry.Description)
 		if err != nil {
 			return fmt.Errorf("Could not write entry '%s' to file: %w", entry.Label, err)
 		}
