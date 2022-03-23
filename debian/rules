@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 
+export PATH := /usr/lib/go-1.16/bin:$(PATH)
 SHIM_SIGNED_VERSION := $(shell dpkg-query -f '$${Version}\n' -W shim-signed)
 export SHIM_SIGNED_VERSION
 
