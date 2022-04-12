@@ -11,7 +11,7 @@ require (
 	github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d
 	github.com/snapcore/secboot v0.0.0-20211029143450-8cdfc8e774d0
 	github.com/snapcore/snapd v0.0.0-20210902070205-9fe87efa1b36 // indirect
-	github.com/spf13/afero v1.6.0
+	github.com/spf13/afero v1.8.2
 	golang.org/x/sys v0.0.0-20211031064116-611d5d643895
 	golang.org/x/text v0.3.7
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
