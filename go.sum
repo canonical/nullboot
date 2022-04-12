@@ -40,8 +40,9 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/bsiegert/ranges v0.0.0-20111221115336-19303dc7aa63/go.mod h1:8z71/aZjDHLs4ihK/5nD5wZVQxm/W4eRDnxQZcJmVD4=
 github.com/canonical/go-efilib v0.0.0-20210909101908-41435fa545d4/go.mod h1:9Sr9kd7IhQPYqaU5nut8Ky97/CtlhHDzQncQnrULgDM=
-github.com/canonical/go-efilib v0.3.1-0.20220314143719-95d50e8afc82 h1:2ch4ZZiiBiXFeu6hSjaezA2hay6atTSD4RO1yqU4WAU=
 github.com/canonical/go-efilib v0.3.1-0.20220314143719-95d50e8afc82/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
+github.com/canonical/go-efilib v0.3.1-0.20220324150059-04e254148b45 h1:vNz7eEqoD04D6aqty3yS8BacBwIUiLVGFDfrBHKgWCo=
+github.com/canonical/go-efilib v0.3.1-0.20220324150059-04e254148b45/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
 github.com/canonical/go-sp800.108-kdf v0.0.0-20210314145419-a3359f2d21b9/go.mod h1:Zrs3YjJr+w51u0R/dyLh/oWt/EcBVdLPCVFYC4daW5s=
 github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0 h1:ZE2XMRFHcwlib3uU9is37+pKkkMloVoEPWmgQ6GK1yo=
 github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0/go.mod h1:Zrs3YjJr+w51u0R/dyLh/oWt/EcBVdLPCVFYC4daW5s=
