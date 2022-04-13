@@ -846,7 +846,7 @@ func (s *resealSuite) writeMockTcglog(c *check.C) {
 					PartitionNumber: 1,
 					PartitionStart:  0x800,
 					PartitionSize:   0x100000,
-					Signature:       efi.MakeGUID(0x66de947b, 0xfdb2, 0x4525, 0xb752, [...]uint8{0x30, 0xd6, 0x6b, 0xb2, 0xb9, 0x60}),
+					Signature:       efi.GUIDHardDriveSignature(efi.MakeGUID(0x66de947b, 0xfdb2, 0x4525, 0xb752, [...]uint8{0x30, 0xd6, 0x6b, 0xb2, 0xb9, 0x60})),
 					MBRType:         efi.GPT},
 				efi.FilePathDevicePathNode("\\EFI\\ubuntu\\shimx64.efi")}}
 		w.hashLogExtendEvent(pe, &event{
