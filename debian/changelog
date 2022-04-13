@@ -1,3 +1,17 @@
+nullboot (0.3.0-0ubuntu1) jammy; urgency=medium
+
+   * Bug fix:
+     - Correctly handle deletion of boot entries
+   * Misc:
+     - Update dependencies to latest versions
+   * GitHub:
+     - Configure dependabot
+     - Configure CodeQL
+   * Packaging:
+     - debian/copyright: Add GPL-3 common-licenses reference
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 13 Apr 2022 18:29:56 +0200
+
 nullboot (0.2.2-0ubuntu1) jammy; urgency=medium
 
   * shim: fallback: Terminate optional data (kernel) with space
