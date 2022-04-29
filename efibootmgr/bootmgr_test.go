@@ -73,7 +73,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 	// This is our mock path
 	pathGot := optGot.FilePath
-	if want := UsbrBootCdromOpt.FilePath; !reflect.DeepEqual(want, pathGot) {
+	if want := (efi.DevicePath{efi.NewFilePathDevicePathNode("path")}); !reflect.DeepEqual(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
 	}
 
@@ -105,7 +105,7 @@ func TestBootManager_mocked(t *testing.T) {
 	}
 	// This is our mock path
 	pathGot = optGot.FilePath
-	if want := UsbrBootCdromOpt.FilePath; !reflect.DeepEqual(want, pathGot) {
+	if want := (efi.DevicePath{efi.NewFilePathDevicePathNode("path2")}); !reflect.DeepEqual(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
 	}
 

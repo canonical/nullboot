@@ -90,9 +90,8 @@ func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.File
 	file.Close()
 
 	return efi.DevicePath{
-		&efi.ACPIDevicePathNode{HID: 0x0a0341d0},
-		&efi.PCIDevicePathNode{Device: 0x14, Function: 0},
-		&efi.USBDevicePathNode{ParentPortNumber: 0xb, InterfaceNumber: 0x1}}, nil
+		efi.NewFilePathDevicePathNode(filepath),
+	}, nil
 }
 
 // VariablesSupported indicates whether variables can be accessed.
