@@ -4,13 +4,17 @@
 
 package main
 
-import "github.com/canonical/nullboot/efibootmgr"
-import "flag"
-import "log"
-import "os"
+import (
+	"flag"
+	"log"
+	"os"
+
+	"github.com/canonical/nullboot/efibootmgr"
+)
 
 var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
 var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables")
+var generateJSONVars = flag.Bool("generate-json-vars", false, "Generate a JSON file containing the EFI variables")
 
 func main() {
 	var assets *efibootmgr.TrustedAssets
@@ -45,17 +49,19 @@ func main() {
 		}
 	}
 
-	var maybeBm *efibootmgr.BootManager
-	if !*noEfivars {
-		if bm, err := efibootmgr.NewBootManagerFromSystem(); err != nil {
-			log.Println("cannot load efi boot variables:", err)
-			os.Exit(1)
-		} else {
-			maybeBm = &bm
-		}
+	var efivars efibootmgr.EFIVariables = &efibootmgr.RealEFIVariables{}
+	mockEFIVars := efibootmgr.NewMockEFIVariables()
+	if *noEfivars {
+		efivars = &mockEFIVars
 	}
 
-	km, err := efibootmgr.NewKernelManager(esp, kernelSourceDir, vendor, maybeBm)
+	bm, err := efibootmgr.NewBootManagerFromSystem(efivars)
+	if err != nil {
+		log.Println("cannot load efi boot variables:", err)
+		os.Exit(1)
+	}
+
+	km, err := efibootmgr.NewKernelManager(esp, kernelSourceDir, vendor, &bm)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -89,6 +95,7 @@ func main() {
 		log.Print(err)
 		os.Exit(1)
 	}
+
 	if err = km.CommitToBootLoader(); err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -101,6 +108,23 @@ func main() {
 	if err = km.CommitToBootLoader(); err != nil {
 		log.Print(err)
 		os.Exit(1)
+	}
+
+	if *generateJSONVars && *noEfivars {
+		bmJSON, err := mockEFIVars.JSON()
+
+		f, err := os.Create("efi-boot-entries.json")
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+		defer f.Close()
+
+		_, err = f.Write(bmJSON)
+		if err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
 	}
 
 	if assets != nil {

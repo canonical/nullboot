@@ -12,7 +12,7 @@ import (
 	"log"
 	"path"
 
-	"github.com/canonical/go-efilib"
+	efi "github.com/canonical/go-efilib"
 	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
@@ -36,9 +36,10 @@ type BootManager struct {
 }
 
 // NewBootManagerFromSystem returns a new BootManager object, initialized with the system state.
-func NewBootManagerFromSystem() (BootManager, error) {
+func NewBootManagerFromSystem(efivars EFIVariables) (BootManager, error) {
 	var err error
 	bm := BootManager{}
+	appEFIVars = efivars
 
 	if !VariablesSupported() {
 		return BootManager{}, fmt.Errorf("Variables not supported")
