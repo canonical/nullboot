@@ -41,6 +41,60 @@ func (RealEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDe
 	return efi_linux.NewFileDevicePath(filepath, mode)
 }
 
+type mockEFIVariable struct {
+	data  []byte
+	attrs efi.VariableAttributes
+}
+
+// MockEFIVariables implements an in-memory variable store.
+type MockEFIVariables struct {
+	store map[efi.VariableDescriptor]mockEFIVariable
+}
+
+// ListVariables implements EFIVariables
+func (m MockEFIVariables) ListVariables() (out []efi.VariableDescriptor, err error) {
+	for k := range m.store {
+		out = append(out, k)
+	}
+	return out, nil
+}
+
+// GetVariable implements EFIVariables
+func (m MockEFIVariables) GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
+	out, ok := m.store[efi.VariableDescriptor{Name: name, GUID: guid}]
+	if !ok {
+		return nil, 0, efi.ErrVarNotExist
+	}
+	return out.data, out.attrs, nil
+}
+
+// SetVariable implements EFIVariables
+func (m *MockEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
+	if m.store == nil {
+		m.store = make(map[efi.VariableDescriptor]mockEFIVariable)
+	}
+	if len(data) == 0 {
+		delete(m.store, efi.VariableDescriptor{Name: name, GUID: guid})
+	} else {
+		m.store[efi.VariableDescriptor{Name: name, GUID: guid}] = mockEFIVariable{data, attrs}
+	}
+	return nil
+}
+
+// NewFileDevicePath implements EFIVariables
+func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
+	file, err := appFs.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	file.Close()
+
+	return efi.DevicePath{
+		&efi.ACPIDevicePathNode{HID: 0x0a0341d0},
+		&efi.PCIDevicePathNode{Device: 0x14, Function: 0},
+		&efi.USBDevicePathNode{ParentPortNumber: 0xb, InterfaceNumber: 0x1}}, nil
+}
+
 // VariablesSupported indicates whether variables can be accessed.
 func VariablesSupported(efiVars EFIVariables) bool {
 	_, err := efiVars.ListVariables()
