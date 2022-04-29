@@ -53,7 +53,10 @@ func NewBootManagerForVariables(efivars EFIVariables) (BootManager, error) {
 
 	bootOrderBytes, bootOrderAttrs, err := bm.efivars.GetVariable(efi.GlobalVariable, "BootOrder")
 	if err != nil {
-		return BootManager{}, fmt.Errorf("cannot read BootOrder variable: %v", err)
+		log.Println("Could not read BootOrder variable, populating with default, error was:", err)
+		if err := bm.efivars.SetVariable(efi.GlobalVariable, "BootOrder", []byte{}, efi.AttributeNonVolatile|efi.AttributeBootserviceAccess|efi.AttributeRuntimeAccess); err != nil {
+			return BootManager{}, err
+		}
 	}
 	bm.bootOrder = make([]int, len(bootOrderBytes)/2)
 	bm.bootOrderAttrs = bootOrderAttrs
