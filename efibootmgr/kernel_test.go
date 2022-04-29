@@ -49,10 +49,9 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
 		},
 	}
-	appEFIVars = &mockvars
 
 	// Create an obsolete Boot0000 entry that we want to collect at the end.
-	bm, _ := NewBootManagerFromSystem()
+	bm, _ := NewBootManagerForVariables(&mockvars)
 	if _, err := bm.FindOrCreateEntry(BootEntry{Filename: "shimx64.efi", Label: "Ubuntu with obsolete kernel", Options: ""}, "/boot/efi/EFI/ubuntu"); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +101,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	}
 
 	// Validate we have actually written the EFI stuff we want
-	bm, err = NewBootManagerFromSystem()
+	bm, err = NewBootManagerForVariables(&mockvars)
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
@@ -133,10 +132,9 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
 		},
 	}
-	appEFIVars = &mockvars
 
 	// Create an obsolete Boot0000 entry that we want to collect at the end.
-	bm, _ := NewBootManagerFromSystem()
+	bm, _ := NewBootManagerForVariables(&mockvars)
 	if _, err := bm.FindOrCreateEntry(BootEntry{Filename: "shimx64.efi", Label: "Ubuntu with obsolete kernel", Options: ""}, "/boot/efi/EFI/ubuntu"); err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +165,7 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 	}
 
 	// Validate we have actually written the EFI stuff we want
-	bm, err = NewBootManagerFromSystem()
+	bm, err = NewBootManagerForVariables(&mockvars)
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
@@ -199,8 +197,7 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{}, 123},
 		},
 	}
-	appEFIVars = &mockvars
-	bm, err := NewBootManagerFromSystem()
+	bm, err := NewBootManagerForVariables(&mockvars)
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}

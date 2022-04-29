@@ -41,18 +41,15 @@ func (RealEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDe
 	return efi_linux.NewFileDevicePath(filepath, mode)
 }
 
-// Chosen implementation
-var appEFIVars EFIVariables = RealEFIVariables{}
-
 // VariablesSupported indicates whether variables can be accessed.
-func VariablesSupported() bool {
-	_, err := appEFIVars.ListVariables()
+func VariablesSupported(efiVars EFIVariables) bool {
+	_, err := efiVars.ListVariables()
 	return err == nil
 }
 
 // GetVariableNames returns the names of every variable with the specified GUID.
-func GetVariableNames(filterGUID efi.GUID) (names []string, err error) {
-	vars, err := appEFIVars.ListVariables()
+func GetVariableNames(efiVars EFIVariables, filterGUID efi.GUID) (names []string, err error) {
+	vars, err := efiVars.ListVariables()
 	if err != nil {
 		return nil, err
 	}
@@ -65,19 +62,9 @@ func GetVariableNames(filterGUID efi.GUID) (names []string, err error) {
 	return names, nil
 }
 
-// GetVariable returns the payload and attributes of the variable with the specified name.
-func GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
-	return appEFIVars.GetVariable(guid, name)
-}
-
-// SetVariable updates the payload of the variable with the specified name.
-func SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
-	return appEFIVars.SetVariable(guid, name, data, attrs)
-}
-
 // DelVariable deletes the non-authenticated variable with the specified name.
-func DelVariable(guid efi.GUID, name string) error {
-	_, attrs, err := appEFIVars.GetVariable(guid, name)
+func DelVariable(efivars EFIVariables, guid efi.GUID, name string) error {
+	_, attrs, err := efivars.GetVariable(guid, name)
 	if err != nil {
 		return err
 	}
@@ -85,10 +72,5 @@ func DelVariable(guid efi.GUID, name string) error {
 	//if attrs&(efi.AttributeAuthenticatedWriteAccess|efi.AttributeTimeBasedAuthenticatedWriteAccess|efi.AttributeEnhancedAuthenticatedAccess) != 0 {
 	//	return errors.New("variable must be deleted by setting an authenticated empty payload")
 	//}
-	return appEFIVars.SetVariable(guid, name, nil, attrs)
-}
-
-// NewFileDevicePath constructs a EFI device path for the specified file path.
-func NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
-	return appEFIVars.NewFileDevicePath(filepath, mode)
+	return efivars.SetVariable(guid, name, nil, attrs)
 }

@@ -25,8 +25,7 @@ func TestBootManager_mocked(t *testing.T) {
 		},
 	}
 
-	appEFIVars = &mockvars
-	bm, err := NewBootManagerFromSystem()
+	bm, err := NewBootManagerForVariables(&mockvars)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -130,8 +129,7 @@ func TestBootManagerDeleteEntry(t *testing.T) {
 		},
 	}
 
-	appEFIVars = &mockvars
-	bm, err := NewBootManagerFromSystem()
+	bm, err := NewBootManagerForVariables(&mockvars)
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
@@ -164,8 +162,7 @@ func TestBootManagerSetBootOrder(t *testing.T) {
 			{GUID: efi.GlobalVariable, Name: "Boot0002"}:  {UsbrBootCdromOptBytes, 43},
 		},
 	}
-	appEFIVars = &mockvars
-	bm, err := NewBootManagerFromSystem()
+	bm, err := NewBootManagerForVariables(&mockvars)
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
@@ -184,8 +181,7 @@ func TestBootManagerSetBootOrder(t *testing.T) {
 func TestBootManager_unsupported(t *testing.T) {
 	mockvars := NoEFIVariables{}
 
-	appEFIVars = &mockvars
-	_, err := NewBootManagerFromSystem()
+	_, err := NewBootManagerForVariables(&mockvars)
 
 	if err == nil {
 		t.Fatalf("Unexpected success")
