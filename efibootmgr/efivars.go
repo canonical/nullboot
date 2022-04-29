@@ -5,6 +5,9 @@
 package efibootmgr
 
 import (
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
 	//"errors"
 	"github.com/canonical/go-efilib"
 	efi_linux "github.com/canonical/go-efilib/linux"
@@ -92,6 +95,28 @@ func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.File
 	return efi.DevicePath{
 		efi.NewFilePathDevicePathNode(filepath),
 	}, nil
+}
+
+// JSON renders the MockEFIVariables as an Azure JSON config
+func (m MockEFIVariables) JSON() ([]byte, error) {
+	payload := make(map[string]map[string]string)
+
+	var numBytes [2]byte
+	for key, entry := range m.store {
+		entryID := key.Name
+		entryBase64 := base64.StdEncoding.EncodeToString(entry.data)
+		guidBase64 := base64.StdEncoding.EncodeToString(key.GUID[0:])
+		binary.LittleEndian.PutUint16(numBytes[0:], uint16(entry.attrs))
+		entryAttrBase64 := base64.StdEncoding.EncodeToString([]byte{numBytes[0], numBytes[1]})
+
+		payload[entryID] = map[string]string{
+			"guid":       guidBase64,
+			"attributes": entryAttrBase64,
+			"value":      entryBase64,
+		}
+	}
+
+	return json.MarshalIndent(payload, "", "  ")
 }
 
 // VariablesSupported indicates whether variables can be accessed.
