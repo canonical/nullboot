@@ -216,7 +216,7 @@ func TestBootManager_json(t *testing.T) {
 	}
 	// This is our mock path
 	pathGot := optGot.FilePath
-	if want := (efi.DevicePath{efi.NewFilePathDevicePathNode("/boot/efi/path")}); !reflect.DeepEqual(want, pathGot) {
+	if want := (efi.DevicePath{efi.NewFilePathDevicePathNode("/path")}); !reflect.DeepEqual(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
 	}
 
@@ -248,7 +248,7 @@ func TestBootManager_json(t *testing.T) {
 	}
 	// This is our mock path
 	pathGot = optGot.FilePath
-	if want := (efi.DevicePath{efi.NewFilePathDevicePathNode("/boot/efi/path2")}); !reflect.DeepEqual(want, pathGot) {
+	if want := (efi.DevicePath{efi.NewFilePathDevicePathNode("/path2")}); !reflect.DeepEqual(want, pathGot) {
 		t.Fatalf("Expected path %v, got %v", want, pathGot)
 	}
 	if err := bm.PrependAndSetBootOrder([]int{0, 1}); err != nil {
@@ -267,12 +267,12 @@ func TestBootManager_json(t *testing.T) {
 		"Boot0000": {
 			"attributes": "BwA=",
 			"guid":       "Yd/ki8qT0hGqDQDgmAMrjA==",
-			"value":      "AQAAACYAZABlAHMAYwAAAAQEIgBcAGIAbwBvAHQAXABlAGYAaQBcAHAAYQB0AGgAAAB//wQAYQByAGcAMQAgAGEAcgBnADIAAAA=",
+			"value":      "AQAAABQAZABlAHMAYwAAAAQEEABcAHAAYQB0AGgAAAB//wQAYQByAGcAMQAgAGEAcgBnADIAAAA=",
 		},
 		"Boot0001": {
 			"attributes": "BwA=",
 			"guid":       "Yd/ki8qT0hGqDQDgmAMrjA==",
-			"value":      "AQAAACgAZABlAHMAYwAyAAAABAQkAFwAYgBvAG8AdABcAGUAZgBpAFwAcABhAHQAaAAyAAAAf/8EAGEAcgBnADMAIABhAHIAZwA0AAAA",
+			"value":      "AQAAABYAZABlAHMAYwAyAAAABAQSAFwAcABhAHQAaAAyAAAAf/8EAGEAcgBnADMAIABhAHIAZwA0AAAA",
 		},
 		"BootOrder": {
 			"attributes": "BwA=",
@@ -288,7 +288,7 @@ func TestBootManager_json(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(want, gotJSON) {
-		t.Fatalf("Expected\n%v\ngot\n%v\nerr: %v", want, got, err)
+		t.Fatalf("Expected\n%v\ngot\n%v\nerr: %v", want, gotJSON, err)
 	}
 }
 

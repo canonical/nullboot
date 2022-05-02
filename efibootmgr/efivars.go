@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"strings"
+
 	//"errors"
 	"github.com/canonical/go-efilib"
 	efi_linux "github.com/canonical/go-efilib/linux"
@@ -91,6 +93,11 @@ func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.File
 		return nil, err
 	}
 	file.Close()
+
+	const espLocation = "/boot/efi/"
+	if strings.HasPrefix(filepath, espLocation) {
+		filepath = filepath[len(espLocation):]
+	}
 
 	return efi.DevicePath{
 		efi.NewFilePathDevicePathNode(filepath),
