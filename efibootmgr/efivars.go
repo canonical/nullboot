@@ -114,7 +114,7 @@ func (m MockEFIVariables) JSON() ([]byte, error) {
 		entryBase64 := base64.StdEncoding.EncodeToString(entry.data)
 		guidBase64 := base64.StdEncoding.EncodeToString(key.GUID[0:])
 		binary.LittleEndian.PutUint16(numBytes[0:], uint16(entry.attrs))
-		entryAttrBase64 := base64.StdEncoding.EncodeToString([]byte{numBytes[0], numBytes[1]})
+		entryAttrBase64 := base64.StdEncoding.EncodeToString(numBytes[0:])
 
 		payload[entryID] = map[string]string{
 			"guid":       guidBase64,
