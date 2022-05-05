@@ -186,9 +186,7 @@ func TestBootManager_json(t *testing.T) {
 	afero.WriteFile(memFs, "/boot/efi/path", []byte("file a"), 0644)
 	afero.WriteFile(memFs, "/boot/efi/path2", []byte("file b"), 0644)
 	mockvars := MockEFIVariables{
-		map[efi.VariableDescriptor]mockEFIVariable{
-			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{}, efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess},
-		},
+		map[efi.VariableDescriptor]mockEFIVariable{},
 	}
 
 	bm, err := NewBootManagerForVariables(&mockvars)
