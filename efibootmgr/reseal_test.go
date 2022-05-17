@@ -92,14 +92,6 @@ func (*resealSuite) mockUnixKeyctlInt(fn func(cmd, arg2, arg3, arg4, arg5 int) (
 	}
 }
 
-func (*resealSuite) mockEfiVars(vars map[efi.VariableDescriptor]mockEFIVariable) (restore func()) {
-	orig := appEFIVars
-	appEFIVars = &MockEFIVariables{vars}
-	return func() {
-		appEFIVars = orig
-	}
-}
-
 func (*resealSuite) mockEfiArch(arch string) (restore func()) {
 	orig := appArchitecture
 	appArchitecture = arch
@@ -306,8 +298,7 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	})
 	defer restore()
 
-	restore = s.mockEfiVars(map[efi.VariableDescriptor]mockEFIVariable{{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123}})
-	defer restore()
+	mockvars := MockEFIVariables{map[efi.VariableDescriptor]mockEFIVariable{{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123}}}
 
 	assets, err := ReadTrustedAssets()
 	c.Assert(err, check.IsNil)
@@ -317,7 +308,7 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	c.Check(assets.TrustNewFromDir("/usr/lib/nullboot/shim"), check.IsNil)
 	c.Check(assets.TrustNewFromDir("/usr/lib/linux"), check.IsNil)
 
-	bm, err := NewBootManagerFromSystem()
+	bm, err := NewBootManagerForVariables(&mockvars)
 	c.Assert(err, check.IsNil)
 	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
 	c.Assert(err, check.IsNil)
@@ -691,8 +682,7 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 	})
 	defer restore()
 
-	restore = s.mockEfiVars(map[efi.VariableDescriptor]mockEFIVariable{{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123}})
-	defer restore()
+	mockvars := MockEFIVariables{map[efi.VariableDescriptor]mockEFIVariable{{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123}}}
 
 	assets, err := ReadTrustedAssets()
 	c.Assert(err, check.IsNil)
@@ -703,7 +693,7 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 	c.Check(assets.TrustNewFromDir("/usr/lib/nullboot/shim"), check.IsNil)
 	c.Check(assets.TrustNewFromDir("/usr/lib/linux"), check.IsNil)
 
-	bm, err := NewBootManagerFromSystem()
+	bm, err := NewBootManagerForVariables(&mockvars)
 	c.Assert(err, check.IsNil)
 	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
 	c.Assert(err, check.IsNil)
