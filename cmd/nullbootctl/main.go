@@ -124,7 +124,7 @@ func main() {
 		}
 	}
 
-	if jsonEfivars := efivars.(*efibootmgr.MockEFIVariables); jsonEfivars != nil {
+	if jsonEfivars, ok := efivars.(*efibootmgr.MockEFIVariables); ok {
 		json, err := jsonEfivars.JSON()
 		if err != nil {
 			log.Println("cannot write json:", err)
