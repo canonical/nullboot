@@ -1,3 +1,13 @@
+nullboot (0.4.0-0ubuntu0.20.04.1) focal; urgency=medium
+
+  * Feature:
+    - Support for an -output-json option to dump efi boot variables to
+      a JSON file
+  * Bug fixes:
+    - Handle missing BootOrder variable correctly
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 18 May 2022 16:09:13 +0200
+
 nullboot (0.3.0-0ubuntu0.20.04.1) focal; urgency=medium
 
   * Backport to focal (LP: #1968152)
