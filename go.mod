@@ -10,7 +10,7 @@ require (
 	github.com/snapcore/go-gettext v0.0.0-20201130093759-38740d1bd3d2 // indirect
 	github.com/snapcore/secboot v0.0.0-20220406084634-6e724131009b
 	github.com/snapcore/snapd v0.0.0-20220411132918-d69f2ac36bd2 // indirect
-	github.com/spf13/afero v1.8.2
+	github.com/spf13/afero v1.9.2
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
