@@ -1,5 +1,6 @@
-nullboot (0.4.0-0ubuntu1) kinetic; urgency=medium
+nullboot (0.4.0-0ubuntu0.22.04.1) jammy; urgency=medium
 
+  * nullboot 0.4.0 for jammy (LP: #1990504)
   * Feature:
     - Support for an -output-json option to dump efi boot variables to
       a JSON file
