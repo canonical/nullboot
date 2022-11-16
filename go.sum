@@ -180,8 +180,8 @@ github.com/snapcore/snapd v0.0.0-20201005140838-501d14ac146e/go.mod h1:3xrn7QDDK
 github.com/snapcore/snapd v0.0.0-20220411132918-d69f2ac36bd2 h1:hu/d6YhU12uWCT3dh5MRr11YK0ZnWcvS+KTANLatTM8=
 github.com/snapcore/snapd v0.0.0-20220411132918-d69f2ac36bd2/go.mod h1:Ypuk/H7dwlEFWXBJBhq8PFDwZxcyN5bfxNAAMBRPaDI=
 github.com/snapcore/squashfuse v0.0.0-20171220165323-319f6d41a041/go.mod h1:8loYitFPSdoeCXBs/XjO0fyGcpgLAybOHLUsGwgMq90=
-github.com/spf13/afero v1.9.2 h1:j49Hj62F0n+DaZ1dDCvhABaPNSGNkt32oRFxI33IEMw=
-github.com/spf13/afero v1.9.2/go.mod h1:iUV7ddyEEZPO5gA3zD4fJt6iStLlL+Lg4m2cihcDf8Y=
+github.com/spf13/afero v1.9.3 h1:41FoI0fD7OR7mGcKE/aOiLkGreyf8ifIOQmJANWogMk=
+github.com/spf13/afero v1.9.3/go.mod h1:iUV7ddyEEZPO5gA3zD4fJt6iStLlL+Lg4m2cihcDf8Y=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
