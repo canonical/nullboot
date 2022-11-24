@@ -40,6 +40,7 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/bsiegert/ranges v0.0.0-20111221115336-19303dc7aa63/go.mod h1:8z71/aZjDHLs4ihK/5nD5wZVQxm/W4eRDnxQZcJmVD4=
 github.com/canonical/go-efilib v0.0.0-20210909101908-41435fa545d4/go.mod h1:9Sr9kd7IhQPYqaU5nut8Ky97/CtlhHDzQncQnrULgDM=
+github.com/canonical/go-efilib v0.3.0/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
 github.com/canonical/go-efilib v0.3.1-0.20220314143719-95d50e8afc82/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
 github.com/canonical/go-efilib v0.3.1-0.20220324150059-04e254148b45 h1:vNz7eEqoD04D6aqty3yS8BacBwIUiLVGFDfrBHKgWCo=
 github.com/canonical/go-efilib v0.3.1-0.20220324150059-04e254148b45/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
@@ -49,8 +50,9 @@ github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0/go.mod 
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3 h1:oe6fCvaEpkhyW3qAicT0TnGtyht/UrgvOwMcEgLb7Aw=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod h1:qdP0gaj0QtgX2RUZhnlVrceJ+Qln8aSlDyJwelLLFeM=
 github.com/canonical/go-tpm2 v0.0.0-20210827151749-f80ff5afff61/go.mod h1:vG41hdbBjV4+/fkubTT1ENBBqSkLwLr7mCeW9Y6kpZY=
-github.com/canonical/go-tpm2 v0.1.0 h1:2mXU+Hy+zYSxmuYys2NtPEO6NwT3Qr9Sygwtops7NYk=
 github.com/canonical/go-tpm2 v0.1.0/go.mod h1:vG41hdbBjV4+/fkubTT1ENBBqSkLwLr7mCeW9Y6kpZY=
+github.com/canonical/go-tpm2 v0.3.1 h1:s6lz1VQcuFsXykNX8rUA4acVFPgQy6r4I7JIOjHJK8o=
+github.com/canonical/go-tpm2 v0.3.1/go.mod h1:zKG2ng7qzxp+siDIa1Scd3h/cXF5Di13Havf5ZwfaVY=
 github.com/canonical/tcglog-parser v0.0.0-20210824131805-69fa1e9f0ad2/go.mod h1:QoW2apR2tBl6T/4czdND/EHjL1Ia9cCmQnIj9Xe0Kt8=
 github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1 h1:JSg9RHT1AMIFIiYEM7hMUe3oI+hhnLpjcFwG+hcOUqE=
 github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1/go.mod h1:AoJVV7tUwDDGPZkKqwqAMGdPiH7x45JLNmxFrxfoxcs=
@@ -162,6 +164,7 @@ github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/mvo5/goconfigparser v0.0.0-20200803085309-72e476556adb/go.mod h1:xmt4k1xLDl8Tdan+0S/jmMK2uSUBSzTc18+5GN5Vea8=
 github.com/mvo5/goconfigparser v0.0.0-20201015074339-50f22f44deb5/go.mod h1:xmt4k1xLDl8Tdan+0S/jmMK2uSUBSzTc18+5GN5Vea8=
+github.com/mvo5/goconfigparser v0.0.0-20221018104758-434073381f37/go.mod h1:inxjKzuGbpMDmdoI7kogueqBVRdf6fPAG5dAsU3gu60=
 github.com/mvo5/libseccomp-golang v0.9.1-0.20180308152521-f4de83b52afb/go.mod h1:RduRpSkQHOCvZTbGgT/NJUGjFBFkYlVedimxssQ64ag=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
