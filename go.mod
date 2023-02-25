@@ -3,7 +3,7 @@ module github.com/canonical/nullboot
 go 1.16
 
 require (
-	github.com/canonical/go-efilib v0.3.1-0.20220324150059-04e254148b45
+	github.com/canonical/go-efilib v0.9.0
 	github.com/canonical/go-tpm2 v0.1.0
 	github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1
 	github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d
