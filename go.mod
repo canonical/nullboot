@@ -13,7 +13,7 @@ require (
 	github.com/spf13/afero v1.9.4
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
+	golang.org/x/sys v0.5.0
 	golang.org/x/text v0.7.0
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
