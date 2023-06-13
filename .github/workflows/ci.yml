@@ -26,12 +26,12 @@ jobs:
     - name: Setup dependencies
       run: |
         sudo apt install libefivar-dev libefiboot-dev python3-pip golint
-        curl https://pre-commit.com/install-local.py | python3 -
+        pip3 install pre-commit
 
     - name: Run pre-commit
       run: |
         go get .
-        ~/bin/pre-commit run -a
+        ~/.local/bin/pre-commit run -a
 
     - name: Coverage
       run: go test -v -coverprofile=profile.cov ./...
