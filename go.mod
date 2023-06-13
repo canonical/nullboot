@@ -3,7 +3,7 @@ module github.com/canonical/nullboot
 go 1.18
 
 require (
-	github.com/canonical/go-efilib v0.3.1-0.20220324150059-04e254148b45
+	github.com/canonical/go-efilib v0.9.4
 	github.com/canonical/go-tpm2 v0.1.0
 	github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1
 	github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d
@@ -23,8 +23,8 @@ require (
 	github.com/snapcore/go-gettext v0.0.0-20201130093759-38740d1bd3d2 // indirect
 	github.com/snapcore/snapd v0.0.0-20220411132918-d69f2ac36bd2 // indirect
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
