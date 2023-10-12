@@ -9,7 +9,7 @@ require (
 	github.com/knqyf263/go-deb-version v0.0.0-20190517075300-09fca494f03d
 	github.com/snapcore/secboot v0.0.0-20220406084634-6e724131009b
 	github.com/spf13/afero v1.10.0
-	golang.org/x/sys v0.10.0
+	golang.org/x/sys v0.13.0
 	golang.org/x/text v0.13.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
@@ -23,8 +23,8 @@ require (
 	github.com/snapcore/go-gettext v0.0.0-20201130093759-38740d1bd3d2 // indirect
 	github.com/snapcore/snapd v0.0.0-20220411132918-d69f2ac36bd2 // indirect
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
