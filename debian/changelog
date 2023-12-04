@@ -1,3 +1,21 @@
+nullboot (0.5.0-0ubuntu1) noble; urgency=medium
+
+  [ Julian Andres Klode ]
+  * Target Go 1.18 to allow newer dependencies with bug fixes
+  * GitHub actions:
+    - ci: Use pip to install pre-commit
+    -  Update coveralls for parallel builds
+  * Rebuild against new shim 15.7-0ubuntu1 (LP: #2045552)
+    - CVE-2022-28737
+
+  [ Dimitri John Ledkov ]
+  * Upgrade to snapd 2.61 and some of the other deps (#68) (LP: #2045552)
+
+  [ dependabot[bot] ]
+  * Various automated dependency bumps, no further changes required
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Mon, 04 Dec 2023 12:30:07 +0100
+
 nullboot (0.4.0-0ubuntu1) kinetic; urgency=medium
 
   * Feature:
