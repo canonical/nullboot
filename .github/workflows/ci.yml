@@ -36,7 +36,19 @@ jobs:
     - name: Coverage
       run: go test -v -coverprofile=profile.cov ./...
 
-    - name: Send coverage
+    - name: Send coverage to Coveralls (parallel)
       uses: shogo82148/actions-goveralls@v1
       with:
         path-to-profile: profile.cov
+        parallel: true
+        flag-name: ${{ matrix.os }}-go-${{ matrix.go }}
+
+  finish:
+    needs: pre-commit
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls finished
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true
