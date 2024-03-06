@@ -7,7 +7,7 @@ Priority: optional
 Build-Depends: debhelper-compat (= 11),
                dh-golang,
                golang-go,
-               shim-signed
+               shim-signed (= 1.51.3+15.7-0ubuntu1)
 Standards-Version: 4.5.0
 Vcs-Browser: https://github.com/canonical/nullboot
 Vcs-Git: https://github.com/canonical/nullboot.git
