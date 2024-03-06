@@ -1,3 +1,11 @@
+nullboot (0.5.0-0ubuntu2) noble; urgency=medium
+
+  * Use versioned build dependency against shim-signedf.
+    We do not want no-change rebuilds to accidentally deliver a new
+    shim.
+
+ -- Julian Andres Klode <jak@debian.org>  Wed, 06 Mar 2024 12:17:45 +0100
+
 nullboot (0.5.0-0ubuntu1) noble; urgency=medium
 
   [ Julian Andres Klode ]
