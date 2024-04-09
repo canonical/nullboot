@@ -7,8 +7,9 @@ github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0 h1:ZE2X
 github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0/go.mod h1:Zrs3YjJr+w51u0R/dyLh/oWt/EcBVdLPCVFYC4daW5s=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3 h1:oe6fCvaEpkhyW3qAicT0TnGtyht/UrgvOwMcEgLb7Aw=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod h1:qdP0gaj0QtgX2RUZhnlVrceJ+Qln8aSlDyJwelLLFeM=
-github.com/canonical/go-tpm2 v0.1.0 h1:2mXU+Hy+zYSxmuYys2NtPEO6NwT3Qr9Sygwtops7NYk=
 github.com/canonical/go-tpm2 v0.1.0/go.mod h1:vG41hdbBjV4+/fkubTT1ENBBqSkLwLr7mCeW9Y6kpZY=
+github.com/canonical/go-tpm2 v1.6.1 h1:34zFfFWmiNUbXtspmBfhcQwda+yNZStibrMNzRI0qq8=
+github.com/canonical/go-tpm2 v1.6.1/go.mod h1:Dz0PQRmoYrmk/4BLILjRA+SFzuqEo1etAvYeAJiMhYU=
 github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1 h1:JSg9RHT1AMIFIiYEM7hMUe3oI+hhnLpjcFwG+hcOUqE=
 github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1/go.mod h1:AoJVV7tUwDDGPZkKqwqAMGdPiH7x45JLNmxFrxfoxcs=
 github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
