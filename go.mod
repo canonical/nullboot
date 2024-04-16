@@ -7,7 +7,7 @@ require (
 	github.com/canonical/go-tpm2 v0.1.0
 	github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1
 	github.com/knqyf263/go-deb-version v0.0.0-20230223133812-3ed183d23422
-	github.com/snapcore/secboot v0.0.0-20230623151406-4d331d24f830
+	github.com/snapcore/secboot v0.0.0-20240411101434-f3ad7c92552a
 	github.com/spf13/afero v1.11.0
 	golang.org/x/sys v0.19.0
 	golang.org/x/text v0.14.0
