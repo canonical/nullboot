@@ -1,3 +1,20 @@
+nullboot (0.5.1-0ubuntu1) noble; urgency=medium
+
+  [ Julian Andres Klode ]
+  * New release adding support for shim 15.8-0ubuntu1 (LP: #2061754)
+  * ci: Test against go 1.22
+  * Update secboot for shim 15.8-1
+  * Update snapd to 2.62
+  * Build against shim 15.8-0ubuntu1
+
+  [ dependabot[bot] ]
+  * build(deps): bump github/codeql-action from 2 to 3
+  * build(deps): bump actions/setup-go from 4 to 5
+  * build(deps): bump golang.org/x/crypto from 0.16.0 to 0.17.0
+  * build(deps): bump golang.org/x/sys from 0.15.0 to 0.19.0
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Tue, 16 Apr 2024 10:53:07 +0200
+
 nullboot (0.5.0-0ubuntu2) noble; urgency=medium
 
   * Use versioned build dependency against shim-signedf.
