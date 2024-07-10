@@ -9,7 +9,7 @@ require (
 	github.com/knqyf263/go-deb-version v0.0.0-20230223133812-3ed183d23422
 	github.com/snapcore/secboot v0.0.0-20240411101434-f3ad7c92552a
 	github.com/spf13/afero v1.11.0
-	golang.org/x/sys v0.19.0
+	golang.org/x/sys v0.22.0
 	golang.org/x/text v0.16.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
