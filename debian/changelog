@@ -1,3 +1,16 @@
+nullboot (0.5.2-0ubuntu1) oracular; urgency=medium
+
+  [ Julian Andres Klode ]
+  * New release with dependency bumps
+  * Build with CGO_ENABLED=0 because we don't need the cgo bits
+
+  [ dependabot[bot] ]
+  * build(deps): bump golang.org/x/net from 0.19.0 to 0.23.0
+  * build(deps): bump golang.org/x/text from 0.14.0 to 0.16.0
+  * build(deps): bump golang.org/x/sys from 0.19.0 to 0.22.0
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 10 Jul 2024 12:51:56 +0200
+
 nullboot (0.5.1-0ubuntu1) noble; urgency=medium
 
   [ Julian Andres Klode ]
