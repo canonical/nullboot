@@ -3,6 +3,8 @@
 SHIM_SIGNED_VERSION := $(shell dpkg-query -f '$${Version}\n' -W shim-signed)
 export SHIM_SIGNED_VERSION
 
+export CGO_ENABLED=0
+
 %:
 	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
 
