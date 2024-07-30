@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/canonical/go-efilib v0.3.1-0.20220815143333-7e5151412e93
-	github.com/canonical/go-tpm2 v0.1.0
+	github.com/canonical/go-tpm2 v1.7.3
 	github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1
 	github.com/knqyf263/go-deb-version v0.0.0-20230223133812-3ed183d23422
 	github.com/snapcore/secboot v0.0.0-20240411101434-f3ad7c92552a
