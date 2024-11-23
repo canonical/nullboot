@@ -1,6 +1,21 @@
 #!/usr/bin/make -f
 
-SHIM_SIGNED_VERSION := $(shell dpkg-query -f '$${Version}\n' -W shim-signed)
+SHIM_SIGNED_VERSION := $(shell dpkg-query -f '$${Version}\n' -W shim-signed 2>/dev/null)
+NULLBOOT_SHIM_SIGNED_VERSION := $(shell dpkg-query --status nullboot 2>/dev/null | sed -rn "s/Built-Using:.*shim-signed.*\(= (.*)\).*/\1/p")
+REQUESTED_SHIM_SIGNED_VERSION := $(shell sed -nr "s/.*shim-signed.*\(= (.*)\).*/\1/p" debian/control | head -1)
+
+SHIM_DIR=/usr/lib/shim
+ifneq "$(REQUESTED_SHIM_SIGNED_VERSION)" "$(SHIM_SIGNED_VERSION)"
+ ifeq "$(REQUESTED_SHIM_SIGNED_VERSION)" "$(NULLBOOT_SHIM_SIGNED_VERSION)"
+  $(warning Building using shim from previous nullboot to receive shim-signed=$(REQUESTED_SHIM_SIGNED_VERSION) as shim-signed=$(SHIM_SIGNED_VERSION) is too new)
+  SHIM_SIGNED_VERSION=$(NULLBOOT_SHIM_SIGNED_VERSION)
+  SHIM_DIR=/usr/lib/nullboot/shim
+ else
+  $(error Build-Depends requests shim-signed=$(REQUESTED_SHIM_SIGNED_VERSION), but building against $(SHIM_SIGNED_VERSION))
+ endif
+endif
+
+
 export SHIM_SIGNED_VERSION
 
 export CGO_ENABLED=0
@@ -13,5 +28,5 @@ override_dh_gencontrol:
 
 override_dh_auto_install:
 	mkdir -p debian/nullboot/usr/lib/nullboot/shim
-	cp /usr/lib/shim/shim*.signed /usr/lib/shim/fb*.efi /usr/lib/shim/mm*.efi debian/nullboot/usr/lib/nullboot/shim
+	cp $(SHIM_DIR)/shim*.signed $(SHIM_DIR)/fb*.efi $(SHIM_DIR)/mm*.efi debian/nullboot/usr/lib/nullboot/shim
 	dh_auto_install -- --no-source
