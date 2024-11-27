@@ -16,6 +16,28 @@ nullboot (0.5.0-0ubuntu0.22.04.1) jammy; urgency=medium
 
  -- Julian Andres Klode <juliank@ubuntu.com>  Mon, 04 Dec 2023 12:30:07 +0100
 
+nullboot (0.4.0-0ubuntu0.22.04.4) jammy-security; urgency=medium
+
+  [ Julian Andres Klode ]
+  * Use shim-signed executables from previous nullboot upload
+    to fix Azure CVM UKI LUKS unseal regression. (LP: #2089427)
+    - d/control
+    - d/rules
+
+ -- Matthew Ruffell <matthew.ruffell@canonical.com>  Sat, 23 Nov 2024 21:57:53 +1300
+
+nullboot (0.4.0-0ubuntu0.22.04.3) jammy-security; urgency=medium
+
+  * No change rebuild due to golang-1.18 update
+
+ -- Allen Huang <allen.huang@canonical.com>  Fri, 15 Nov 2024 22:34:23 +0000
+
+nullboot (0.4.0-0ubuntu0.22.04.2) jammy-security; urgency=medium
+
+  * No change build due to golang-1.18 update
+
+ -- Nishit Majithia <nishit.majithia@canonical.com>  Tue, 02 May 2023 15:49:39 +0530
+
 nullboot (0.4.0-0ubuntu0.22.04.1) jammy; urgency=medium
 
   * nullboot 0.4.0 for jammy (LP: #1990504)
