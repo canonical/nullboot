@@ -1,3 +1,11 @@
+nullboot (0.5.0-0ubuntu0.22.04.2) jammy; urgency=medium
+
+  * Use versioned build dependency against shim-signed.
+    We do not want no-change rebuilds to accidentally deliver a new
+    shim. (LP: #2089761)
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 27 Nov 2024 12:43:31 +0100
+
 nullboot (0.5.0-0ubuntu0.22.04.1) jammy; urgency=medium
 
   [ Julian Andres Klode ]
