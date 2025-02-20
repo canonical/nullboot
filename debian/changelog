@@ -1,3 +1,16 @@
+nullboot (0.5.3-0ubuntu1) plucky; urgency=medium
+
+  [ Julian Andres Klode ]
+  * Target Go 1.22 and update CI
+
+  [ dependabot[bot] ]
+  * build(deps): bump golang.org/x/text from 0.16.0 to 0.19.0 (#105)
+  * build(deps): bump golang.org/x/sys from 0.22.0 to 0.30.0 (#111)
+  * build(deps): bump golang.org/x/crypto from 0.21.0 to 0.31.0 (#109)
+  * build(deps): bump golang.org/x/net from 0.23.0 to 0.33.0 (#110)
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Thu, 20 Feb 2025 11:08:14 +0100
+
 nullboot (0.5.2-0ubuntu2) plucky; urgency=medium
 
   * Support building using shim from last nullboot upload
