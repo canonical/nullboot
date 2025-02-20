@@ -1,3 +1,10 @@
+nullboot (0.5.2-0ubuntu2) plucky; urgency=medium
+
+  * Support building using shim from last nullboot upload
+  * Bump shim from 15.8-0ubuntu1 to 15.8-0ubuntu2
+
+ -- Julian Andres Klode <juliank@ubuntu.com>  Thu, 20 Feb 2025 10:38:06 +0100
+
 nullboot (0.5.2-0ubuntu1) oracular; urgency=medium
 
   [ Julian Andres Klode ]
