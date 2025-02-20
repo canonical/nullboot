@@ -1,6 +1,6 @@
 module github.com/canonical/nullboot
 
-go 1.18
+go 1.22
 
 require (
 	github.com/canonical/go-efilib v0.3.1-0.20220815143333-7e5151412e93
