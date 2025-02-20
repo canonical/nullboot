@@ -6,7 +6,7 @@ Testsuite: autopkgtest-pkg-go
 Priority: optional
 Build-Depends: debhelper-compat (= 11),
                dh-golang,
-               golang-go,
+               golang-go (>= 2:1.22),
                shim-signed (= 1.59+15.8-0ubuntu2) | nullboot
 Standards-Version: 4.5.0
 Vcs-Browser: https://github.com/canonical/nullboot
