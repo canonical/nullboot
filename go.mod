@@ -1,6 +1,6 @@
 module github.com/canonical/nullboot
 
-go 1.18
+go 1.22
 
 require (
 	github.com/canonical/go-efilib v0.3.1-0.20220815143333-7e5151412e93
@@ -9,8 +9,8 @@ require (
 	github.com/knqyf263/go-deb-version v0.0.0-20230223133812-3ed183d23422
 	github.com/snapcore/secboot v0.0.0-20240411101434-f3ad7c92552a
 	github.com/spf13/afero v1.11.0
-	golang.org/x/sys v0.22.0
-	golang.org/x/text v0.16.0
+	golang.org/x/sys v0.30.0
+	golang.org/x/text v0.21.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
 
@@ -24,8 +24,8 @@ require (
 	github.com/snapcore/go-gettext v0.0.0-20201130093759-38740d1bd3d2 // indirect
 	github.com/snapcore/snapd v0.0.0-20240321202327-b749eda44d9f // indirect
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
