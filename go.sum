@@ -2,13 +2,15 @@ github.com/bsiegert/ranges v0.0.0-20111221115336-19303dc7aa63/go.mod h1:8z71/aZj
 github.com/canonical/go-efilib v0.3.1-0.20220314143719-95d50e8afc82/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
 github.com/canonical/go-efilib v0.3.1-0.20220815143333-7e5151412e93 h1:F0bRDzPy/j2IX/iIWqCEA23S1nal+f7A+/vLyj6Ye+4=
 github.com/canonical/go-efilib v0.3.1-0.20220815143333-7e5151412e93/go.mod h1:9b2PNAuPcZsB76x75/uwH99D8CyH/A2y4rq1/+bvplg=
+github.com/canonical/go-kbkdf v0.0.0-20250104172618-3b1308f9acf9 h1:Twk1ZSTWRClfGShP16ePf2JIiayqWS4ix1rkAR6baag=
+github.com/canonical/go-kbkdf v0.0.0-20250104172618-3b1308f9acf9/go.mod h1:IneQ5/yQcfPXrGekEXpR6yeea55ZD24N5+kHzeDseOM=
 github.com/canonical/go-sp800.108-kdf v0.0.0-20210314145419-a3359f2d21b9/go.mod h1:Zrs3YjJr+w51u0R/dyLh/oWt/EcBVdLPCVFYC4daW5s=
-github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0 h1:ZE2XMRFHcwlib3uU9is37+pKkkMloVoEPWmgQ6GK1yo=
 github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0/go.mod h1:Zrs3YjJr+w51u0R/dyLh/oWt/EcBVdLPCVFYC4daW5s=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3 h1:oe6fCvaEpkhyW3qAicT0TnGtyht/UrgvOwMcEgLb7Aw=
 github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3/go.mod h1:qdP0gaj0QtgX2RUZhnlVrceJ+Qln8aSlDyJwelLLFeM=
-github.com/canonical/go-tpm2 v0.1.0 h1:2mXU+Hy+zYSxmuYys2NtPEO6NwT3Qr9Sygwtops7NYk=
 github.com/canonical/go-tpm2 v0.1.0/go.mod h1:vG41hdbBjV4+/fkubTT1ENBBqSkLwLr7mCeW9Y6kpZY=
+github.com/canonical/go-tpm2 v1.12.2 h1:7sWef6xVlWwBAn7hsY+3j62ANzoAO+GZvrltMHXq9RQ=
+github.com/canonical/go-tpm2 v1.12.2/go.mod h1:zK+qESVwu78XyX+NPhiBdN+zwPPDoKk4rYlQ7VUsRp4=
 github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1 h1:JSg9RHT1AMIFIiYEM7hMUe3oI+hhnLpjcFwG+hcOUqE=
 github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1/go.mod h1:AoJVV7tUwDDGPZkKqwqAMGdPiH7x45JLNmxFrxfoxcs=
 github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
