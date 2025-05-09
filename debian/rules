@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
 
+PATH := /usr/lib/go-1.22/bin/:$(PATH)
+export PATH
+
 SHIM_SIGNED_VERSION := $(shell dpkg-query -f '$${Version}\n' -W shim-signed 2>/dev/null)
 NULLBOOT_SHIM_SIGNED_VERSION := $(shell dpkg-query --status nullboot 2>/dev/null | sed -rn "s/Built-Using:.*shim-signed.*\(= (.*)\).*/\1/p")
 REQUESTED_SHIM_SIGNED_VERSION := $(shell sed -nr "s/.*shim-signed.*\(= (.*)\).*/\1/p" debian/control | head -1)
