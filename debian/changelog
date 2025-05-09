@@ -1,3 +1,18 @@
+nullboot (0.5.0-0ubuntu3) noble; urgency=medium
+
+  [ William Grant ]
+  * No-change rebuild for CVE-2024-3094
+
+ -- Mate Kukri <mate.kukri@canonical.com>  Fri, 09 May 2025 14:24:39 +0100
+
+nullboot (0.5.0-0ubuntu2) noble; urgency=medium
+
+  * Use versioned build dependency against shim-signedf.
+    We do not want no-change rebuilds to accidentally deliver a new
+    shim.
+
+ -- Julian Andres Klode <jak@debian.org>  Wed, 06 Mar 2024 12:17:45 +0100
+
 nullboot (0.5.0-0ubuntu1) noble; urgency=medium
 
   [ Julian Andres Klode ]
