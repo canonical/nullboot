@@ -1,3 +1,23 @@
+nullboot (0.5.3-0ubuntu0.24.04.1) noble; urgency=medium
+
+  [ Mate Kukri ]
+  * New upstream release 0.5.3 (LP: #2110302)
+  * Build 0.5.3 against shim-signed 1.58+15.8-0ubuntu1
+  * Use versioned golang-1.22
+
+  [ Julian Andres Klode ]
+  * Target Go 1.22 and update CI
+  * Support building using shim from last nullboot upload
+  * Build with CGO_ENABLED=0 because we don't need the cgo bits
+
+  [ dependabot[bot] ]
+  * build(deps): bump golang.org/x/text from 0.16.0 to 0.19.0 (#105)
+  * build(deps): bump golang.org/x/sys from 0.22.0 to 0.30.0 (#111)
+  * build(deps): bump golang.org/x/crypto from 0.21.0 to 0.31.0 (#109)
+  * build(deps): bump golang.org/x/net from 0.23.0 to 0.33.0 (#110)
+
+ -- Mate Kukri <mate.kukri@canonical.com>  Fri, 09 May 2025 15:24:16 +0100
+
 nullboot (0.5.0-0ubuntu3) noble; urgency=medium
 
   [ William Grant ]
