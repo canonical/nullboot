@@ -1,28 +1,22 @@
-nullboot (0.5.0-0ubuntu0.22.04.2) jammy; urgency=medium
+nullboot (0.5.3-0ubuntu0.22.04.1) jammy; urgency=medium
 
-  * Use versioned build dependency against shim-signed.
-    We do not want no-change rebuilds to accidentally deliver a new
-    shim. (LP: #2089761)
-
- -- Julian Andres Klode <juliank@ubuntu.com>  Wed, 27 Nov 2024 12:43:31 +0100
-
-nullboot (0.5.0-0ubuntu0.22.04.1) jammy; urgency=medium
+  [ Mate Kukri ]
+  * New upstream release 0.5.3 (LP: #2110302)
+  * Build 0.5.3 against shim-signed 1.51.4+15.8-0ubuntu1
+  * Use versioned golang-1.22
 
   [ Julian Andres Klode ]
-  * Target Go 1.18 to allow newer dependencies with bug fixes
-  * GitHub actions:
-    - ci: Use pip to install pre-commit
-    -  Update coveralls for parallel builds
-  * Rebuild against new shim 15.7-0ubuntu1 (LP: #2045552)
-    - CVE-2022-28737
-
-  [ Dimitri John Ledkov ]
-  * Upgrade to snapd 2.61 and some of the other deps (#68) (LP: #2045552)
+  * Target Go 1.22 and update CI
+  * Support building using shim from last nullboot upload
+  * Build with CGO_ENABLED=0 because we don't need the cgo bits
 
   [ dependabot[bot] ]
-  * Various automated dependency bumps, no further changes required
+  * build(deps): bump golang.org/x/text from 0.16.0 to 0.19.0 (#105)
+  * build(deps): bump golang.org/x/sys from 0.22.0 to 0.30.0 (#111)
+  * build(deps): bump golang.org/x/crypto from 0.21.0 to 0.31.0 (#109)
+  * build(deps): bump golang.org/x/net from 0.23.0 to 0.33.0 (#110)
 
- -- Julian Andres Klode <juliank@ubuntu.com>  Mon, 04 Dec 2023 12:30:07 +0100
+ -- Mate Kukri <mate.kukri@canonical.com>  Mon, 08 Sep 2025 15:43:44 +0100
 
 nullboot (0.4.0-0ubuntu0.22.04.4) jammy-security; urgency=medium
 
