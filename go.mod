@@ -3,11 +3,11 @@ module github.com/canonical/nullboot
 go 1.24.0
 
 require (
-	github.com/canonical/go-efilib v0.3.1-0.20220815143333-7e5151412e93
-	github.com/canonical/go-tpm2 v0.1.0
-	github.com/canonical/tcglog-parser v0.0.0-20220314144800-471071956aa1
+	github.com/canonical/go-efilib v1.6.0
+	github.com/canonical/go-tpm2 v1.13.0
+	github.com/canonical/tcglog-parser v0.0.0-20240924110432-d15eaf652981
 	github.com/knqyf263/go-deb-version v0.0.0-20230223133812-3ed183d23422
-	github.com/snapcore/secboot v0.0.0-20240411101434-f3ad7c92552a
+	github.com/snapcore/secboot v0.0.0-20250924180613-f04e6ba54601
 	github.com/spf13/afero v1.15.0
 	golang.org/x/sys v0.38.0
 	golang.org/x/text v0.34.0
@@ -15,7 +15,9 @@ require (
 )
 
 require (
-	github.com/canonical/go-sp800.108-kdf v0.0.0-20210315104021-ead800bbf9a0 // indirect
+	github.com/canonical/cpuid v0.0.0-20220614022739-219e067757cb // indirect
+	github.com/canonical/go-kbkdf v0.0.0-20250104172618-3b1308f9acf9 // indirect
+	github.com/canonical/go-password-validator v0.0.0-20250617132709-1b205303ca54 // indirect
 	github.com/canonical/go-sp800.90a-drbg v0.0.0-20210314144037-6eeb1040d6c3 // indirect
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -23,11 +25,10 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/snapcore/go-gettext v0.0.0-20201130093759-38740d1bd3d2 // indirect
 	github.com/snapcore/snapd v0.0.0-20240321202327-b749eda44d9f // indirect
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	maze.io/x/crypto v0.0.0-20190131090603-9b94c9afe066 // indirect
