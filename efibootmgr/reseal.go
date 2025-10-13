@@ -10,14 +10,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 
-	"github.com/canonical/go-efilib"
+	efi "github.com/canonical/go-efilib"
 	"github.com/canonical/go-tpm2"
 	"github.com/canonical/tcglog-parser"
 	"github.com/snapcore/secboot"
@@ -35,9 +34,7 @@ const (
 
 var (
 	efiComputePeImageDigest                       = efi.ComputePeImageDigest
-	sbefiAddBootManagerProfile                    = secboot_efi.AddBootManagerProfile
-	sbefiAddSecureBootPolicyProfile               = secboot_efi.AddSecureBootPolicyProfile
-	sbGetAuxiliaryKeyFromKernel                   = secboot.GetAuxiliaryKeyFromKernel
+	sbGetPrimaryKeyFromKernel                     = secboot.GetPrimaryKeyFromKernel
 	sbtpmConnectToDefaultTPM                      = secboot_tpm2.ConnectToDefaultTPM
 	sbtpmReadSealedKeyObjectFromFile              = secboot_tpm2.ReadSealedKeyObjectFromFile
 	sbtpmSealedKeyObjectUpdatePCRProtectionPolicy = (*secboot_tpm2.SealedKeyObject).UpdatePCRProtectionPolicy
@@ -64,11 +61,7 @@ func (i *trustedEFIImage) String() string {
 	return i.path
 }
 
-func (i *trustedEFIImage) Open() (file interface {
-	io.ReaderAt
-	io.Closer
-	Size() int64
-}, err error) {
+func (i *trustedEFIImage) Open() (imageReader secboot_efi.ImageReader, err error) {
 	f, err := appFs.Open(i.path)
 	if err != nil {
 		return nil, err
@@ -116,7 +109,7 @@ func resolveLink(path string) (string, error) {
 	}
 }
 
-func getPolicyAuthKeyFromKernel() (secboot_tpm2.PolicyAuthKey, error) {
+func getPrimaryKeyFromKernel() (secboot.PrimaryKey, error) {
 	devPath, err := resolveLink(filepath.Join("/dev/disk/by-label", rootfsLabel))
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve devive symlink: %w", err)
@@ -131,7 +124,7 @@ func getPolicyAuthKeyFromKernel() (secboot_tpm2.PolicyAuthKey, error) {
 		return nil, fmt.Errorf("cannot link user keyring into process keyring: %w", err)
 	}
 
-	key, err := sbGetAuxiliaryKeyFromKernel(keyringPrefix, devPath, false)
+	key, err := sbGetPrimaryKeyFromKernel(keyringPrefix, devPath, false)
 	if err != nil {
 		if err == secboot.ErrKernelKeyNotFound {
 			// Work around a secboot bug
@@ -145,7 +138,7 @@ func getPolicyAuthKeyFromKernel() (secboot_tpm2.PolicyAuthKey, error) {
 					}
 
 					if devPath2 == devPath {
-						key, err = sbGetAuxiliaryKeyFromKernel(keyringPrefix, path, false)
+						key, err = sbGetPrimaryKeyFromKernel(keyringPrefix, path, false)
 						break
 					}
 				}
@@ -156,32 +149,101 @@ func getPolicyAuthKeyFromKernel() (secboot_tpm2.PolicyAuthKey, error) {
 		}
 	}
 
-	return secboot_tpm2.PolicyAuthKey(key), nil
+	return key, nil
 }
 
-func computePCRProtectionProfile(loadChains []*secboot_efi.ImageLoadEvent) (*secboot_tpm2.PCRProtectionProfile, error) {
+// This LoadChain stuff is copied from snapd
+// It gives us a structure we can introspect in unit tests as oppossed
+// to the new secboot structures which are now fully opaque.
+
+type LoadChain struct {
+	*trustedEFIImage
+	// Next is a list of alternative chains that can be loaded
+	// following the boot file.
+	Next []*LoadChain
+}
+
+func NewLoadChain(image *trustedEFIImage, next ...*LoadChain) *LoadChain {
+	return &LoadChain{
+		trustedEFIImage: image,
+		Next:            next,
+	}
+}
+
+func buildLoadSequences(chains []*LoadChain) (loadseqs *secboot_efi.ImageLoadSequences, err error) {
+	// this will build load event trees for the current
+	// device configuration, e.g. something like:
+	//
+	// shim -> kernel 1
+	//     |-> kernel 2
+	//     |-> kernel ...
+
+	loadseqs = secboot_efi.NewImageLoadSequences()
+
+	for _, chain := range chains {
+		// root of load events has source Firmware
+		loadseq, err := chain.loadEvent()
+		if err != nil {
+			return nil, err
+		}
+		loadseqs.Append(loadseq)
+	}
+	return loadseqs, nil
+}
+
+// loadEvent builds the corresponding load event and its tree
+func (lc *LoadChain) loadEvent() (secboot_efi.ImageLoadActivity, error) {
+	var next []secboot_efi.ImageLoadActivity
+	for _, nextChain := range lc.Next {
+		// everything that is not the root has source shim
+		ev, err := nextChain.loadEvent()
+		if err != nil {
+			return nil, err
+		}
+		next = append(next, ev)
+	}
+	return secboot_efi.NewImageLoadActivity(lc).Loads(next...), nil
+}
+
+// Hook for unit tests to introspect load chains
+var introspectLoadChains func(
+	pcrAlg tpm2.HashAlgorithmId,
+	rootBranch *secboot_tpm2.PCRProtectionProfileBranch,
+	loadChains []*LoadChain) = nil
+
+func computePCRProtectionProfile(loadChains []*LoadChain) (*secboot_tpm2.PCRProtectionProfile, error) {
 	profile := secboot_tpm2.NewPCRProtectionProfile()
 
-	pcr4Params := secboot_efi.BootManagerProfileParams{
-		PCRAlgorithm:  tpm2.HashAlgorithmSHA256,
-		LoadSequences: loadChains}
-	if err := sbefiAddBootManagerProfile(profile, &pcr4Params); err != nil {
-		return nil, fmt.Errorf("cannot add EFI boot manager profile: %w", err)
+	var options []secboot_efi.PCRProfileOption
+	options = append(options,
+		secboot_efi.WithSecureBootPolicyProfile(),
+		secboot_efi.WithBootManagerCodeProfile(),
+	)
+
+	if introspectLoadChains != nil {
+		introspectLoadChains(tpm2.HashAlgorithmSHA256, profile.RootBranch(), loadChains)
+	} else {
+		loadSeqs, err := buildLoadSequences(loadChains)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := secboot_efi.AddPCRProfile(
+			tpm2.HashAlgorithmSHA256,
+			profile.RootBranch(),
+			loadSeqs,
+			options...,
+		); err != nil {
+			return nil, fmt.Errorf("cannot add PCR profile: %w", err)
+		}
 	}
 
-	pcr7Params := secboot_efi.SecureBootPolicyProfileParams{
-		PCRAlgorithm:  tpm2.HashAlgorithmSHA256,
-		LoadSequences: loadChains}
-	if err := sbefiAddSecureBootPolicyProfile(profile, &pcr7Params); err != nil {
-		return nil, fmt.Errorf("cannot add EFI secure boot policy profile: %w", err)
-	}
-
-	profile.AddPCRValue(tpm2.HashAlgorithmSHA256, 12, make([]byte, tpm2.HashAlgorithmSHA256.Size()))
+	profile.RootBranch().AddPCRValue(tpm2.HashAlgorithmSHA256, 12, make([]byte, tpm2.HashAlgorithmSHA256.Size()))
 
 	// snap-bootstrap measures an epoch
 	h := crypto.SHA256.New()
 	binary.Write(h, binary.LittleEndian, uint32(0))
-	profile.ExtendPCR(tpm2.HashAlgorithmSHA256, 12, h.Sum(nil))
+	profile.RootBranch().ExtendPCR(tpm2.HashAlgorithmSHA256, 12, h.Sum(nil))
 
 	// XXX: The kernel EFI stub has a compiled-in commandline which isn't measured.
 
@@ -224,24 +286,7 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 
 	context := new(pcrProfileComputeContext)
 
-	shimBase := "shim" + GetEfiArchitecture() + ".efi"
-
-	var roots []*secboot_efi.ImageLoadEvent
-
-	for _, path := range []string{
-		filepath.Join(shimSource, shimBase+".signed"),
-		filepath.Join(esp, "EFI", vendor, shimBase)} {
-		_, err := appFs.Stat(path)
-		if os.IsNotExist(err) {
-			continue
-		}
-
-		roots = append(roots, &secboot_efi.ImageLoadEvent{
-			Source: secboot_efi.Firmware,
-			Image:  newTrustedEFIImage(assets, context, path)})
-	}
-
-	var kernels []*secboot_efi.ImageLoadEvent
+	var kernels []*LoadChain
 
 	for _, x := range []struct {
 		dir   string
@@ -259,22 +304,31 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 		for _, n := range x.files {
 			path := filepath.Join(x.dir, n)
 
-			kernels = append(kernels, &secboot_efi.ImageLoadEvent{
-				Source: secboot_efi.Shim,
-				Image:  newTrustedEFIImage(assets, context, path)})
+			kernels = append(kernels, NewLoadChain(newTrustedEFIImage(assets, context, path)))
 		}
 	}
 
-	for _, root := range roots {
-		root.Next = kernels
+	shimBase := "shim" + GetEfiArchitecture() + ".efi"
+
+	var shims []*LoadChain
+
+	for _, path := range []string{
+		filepath.Join(shimSource, shimBase+".signed"),
+		filepath.Join(esp, "EFI", vendor, shimBase)} {
+		_, err := appFs.Stat(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+
+		shims = append(shims, NewLoadChain(newTrustedEFIImage(assets, context, path), kernels...))
 	}
 
-	authKey, err := getPolicyAuthKeyFromKernel()
+	authKey, err := getPrimaryKeyFromKernel()
 	if err != nil {
 		return fmt.Errorf("cannot obtain auth key from kernel: %w", err)
 	}
 
-	pcrProfile, err := computePCRProtectionProfile(roots)
+	pcrProfile, err := computePCRProtectionProfile(shims)
 	if err != nil {
 		return fmt.Errorf("cannot compute PCR profile: %w", err)
 	}

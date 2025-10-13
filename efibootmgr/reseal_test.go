@@ -11,12 +11,11 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/canonical/go-efilib"
+	efi "github.com/canonical/go-efilib"
 	"github.com/canonical/go-tpm2"
 	"github.com/canonical/go-tpm2/linux"
 	"github.com/canonical/tcglog-parser"
 	"github.com/snapcore/secboot"
-	secboot_efi "github.com/snapcore/secboot/efi"
 	secboot_tpm2 "github.com/snapcore/secboot/tpm2"
 
 	"golang.org/x/sys/unix"
@@ -28,27 +27,11 @@ type resealSuite struct {
 	mapFsMixin
 }
 
-func (*resealSuite) mockSbefiAddBootManagerProfile(fn func(profile *secboot_tpm2.PCRProtectionProfile, params *secboot_efi.BootManagerProfileParams) error) (restore func()) {
-	orig := sbefiAddBootManagerProfile
-	sbefiAddBootManagerProfile = fn
+func (*resealSuite) mockSbGetPrimaryKeyFromKernel(fn func(prefix, devicePath string, remove bool) (secboot.PrimaryKey, error)) (restore func()) {
+	orig := sbGetPrimaryKeyFromKernel
+	sbGetPrimaryKeyFromKernel = fn
 	return func() {
-		sbefiAddBootManagerProfile = orig
-	}
-}
-
-func (*resealSuite) mockSbefiAddSecureBootPolicyProfile(fn func(profile *secboot_tpm2.PCRProtectionProfile, params *secboot_efi.SecureBootPolicyProfileParams) error) (restore func()) {
-	orig := sbefiAddSecureBootPolicyProfile
-	sbefiAddSecureBootPolicyProfile = fn
-	return func() {
-		sbefiAddSecureBootPolicyProfile = orig
-	}
-}
-
-func (*resealSuite) mockSbGetAuxiliaryKeyFromKernel(fn func(prefix, devicePath string, remove bool) (secboot.AuxiliaryKey, error)) (restore func()) {
-	orig := sbGetAuxiliaryKeyFromKernel
-	sbGetAuxiliaryKeyFromKernel = fn
-	return func() {
-		sbGetAuxiliaryKeyFromKernel = orig
+		sbGetPrimaryKeyFromKernel = orig
 	}
 }
 
@@ -68,7 +51,7 @@ func (*resealSuite) mockSbtpmReadSealedKeyObjectFromFile(fn func(path string) (*
 	}
 }
 
-func (*resealSuite) mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(fn func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot_tpm2.PolicyAuthKey, profile *secboot_tpm2.PCRProtectionProfile) error) (restore func()) {
+func (*resealSuite) mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(fn func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile) error) (restore func()) {
 	orig := sbtpmSealedKeyObjectUpdatePCRProtectionPolicy
 	sbtpmSealedKeyObjectUpdatePCRProtectionPolicy = fn
 	return func() {
@@ -139,11 +122,11 @@ func (s *resealSuite) TestTrustedEfiImageBad(c *check.C) {
 }
 
 type testResealKeyData struct {
-	arch         string
-	auxiliaryKey []byte
-	devicePaths  []string
-	shims        [][]byte
-	kernels      [][]byte
+	arch        string
+	primaryKey  secboot.PrimaryKey
+	devicePaths []string
+	shims       [][]byte
+	kernels     [][]byte
 }
 
 func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
@@ -156,13 +139,16 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	restore := s.mockEfiArch(data.arch)
 	defer restore()
 
-	restore = s.mockSbefiAddBootManagerProfile(func(profile *secboot_tpm2.PCRProtectionProfile, params *secboot_efi.BootManagerProfileParams) error {
-		c.Assert(profile, check.NotNil)
-		c.Check(params.PCRAlgorithm, check.Equals, tpm2.HashAlgorithmSHA256)
+	introspectLoadChains = func(
+		pcrAlg tpm2.HashAlgorithmId,
+		rootBranch *secboot_tpm2.PCRProtectionProfileBranch,
+		loadChains []*LoadChain) {
+		c.Assert(rootBranch, check.NotNil)
+		c.Check(pcrAlg, check.Equals, tpm2.HashAlgorithmSHA256)
 
-		c.Assert(params.LoadSequences, check.HasLen, len(data.shims))
-		for i, e := range params.LoadSequences {
-			f, err := e.Image.Open()
+		c.Assert(loadChains, check.HasLen, len(data.shims))
+		for i, e := range loadChains {
+			f, err := e.Open()
 			c.Assert(err, check.IsNil)
 
 			r := io.NewSectionReader(f, 0, 1<<63-1)
@@ -174,7 +160,7 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 
 			c.Assert(e.Next, check.HasLen, len(data.kernels))
 			for i, e := range e.Next {
-				f, err := e.Image.Open()
+				f, err := e.Open()
 				c.Assert(err, check.IsNil)
 
 				r := io.NewSectionReader(f, 0, 1<<63-1)
@@ -186,20 +172,11 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 			}
 		}
 
-		profile.AddPCRValue(tpm2.HashAlgorithmSHA256, 4, make([]byte, 32))
-		return nil
-	})
-	defer restore()
+		rootBranch.AddPCRValue(tpm2.HashAlgorithmSHA256, 4, make([]byte, 32))
 
-	restore = s.mockSbefiAddSecureBootPolicyProfile(func(profile *secboot_tpm2.PCRProtectionProfile, params *secboot_efi.SecureBootPolicyProfileParams) error {
-		c.Assert(profile, check.NotNil)
-		c.Check(params.PCRAlgorithm, check.Equals, tpm2.HashAlgorithmSHA256)
-
-		c.Assert(params.LoadSequences, check.HasLen, len(data.shims))
-		for i, e := range params.LoadSequences {
-			c.Check(e.Source, check.Equals, secboot_efi.Firmware)
-
-			f, err := e.Image.Open()
+		c.Assert(loadChains, check.HasLen, len(data.shims))
+		for i, e := range loadChains {
+			f, err := e.Open()
 			c.Assert(err, check.IsNil)
 
 			r := io.NewSectionReader(f, 0, 1<<63-1)
@@ -211,9 +188,7 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 
 			c.Assert(e.Next, check.HasLen, len(data.kernels))
 			for i, e := range e.Next {
-				c.Check(e.Source, check.Equals, secboot_efi.Shim)
-
-				f, err := e.Image.Open()
+				f, err := e.Open()
 				c.Assert(err, check.IsNil)
 
 				r := io.NewSectionReader(f, 0, 1<<63-1)
@@ -225,13 +200,12 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 			}
 		}
 
-		profile.AddPCRValue(tpm2.HashAlgorithmSHA256, 7, make([]byte, 32))
-		return nil
-	})
-	defer restore()
+		rootBranch.AddPCRValue(tpm2.HashAlgorithmSHA256, 7, make([]byte, 32))
+	}
+	defer func() { introspectLoadChains = nil }()
 
 	n := 0
-	restore = s.mockSbGetAuxiliaryKeyFromKernel(func(prefix, devicePath string, remove bool) (secboot.AuxiliaryKey, error) {
+	restore = s.mockSbGetPrimaryKeyFromKernel(func(prefix, devicePath string, remove bool) (secboot.PrimaryKey, error) {
 		c.Check(prefix, check.Equals, "ubuntu-fde")
 		c.Check(devicePath, check.Equals, data.devicePaths[n])
 		c.Check(remove, check.Equals, false)
@@ -243,7 +217,7 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 			return nil, secboot.ErrKernelKeyNotFound
 		}
 
-		return data.auxiliaryKey, nil
+		return data.primaryKey, nil
 	})
 	defer restore()
 
@@ -268,15 +242,16 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	})
 	defer restore()
 
-	restore = s.mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot_tpm2.PolicyAuthKey, profile *secboot_tpm2.PCRProtectionProfile) error {
+	restore = s.mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile) error {
 		c.Check(k, check.Equals, expectedSko)
 		c.Check(tpm, check.Equals, expectedTpm)
-		c.Check(authKey, check.DeepEquals, secboot_tpm2.PolicyAuthKey(data.auxiliaryKey))
+		c.Check(authKey, check.DeepEquals, data.primaryKey)
 		c.Assert(profile, check.NotNil)
 
 		pcrs, _, err := profile.ComputePCRDigests(nil, tpm2.HashAlgorithmSHA256)
 		c.Check(err, check.IsNil)
-		c.Check(pcrs.Equal(tpm2.PCRSelectionList{{Hash: tpm2.HashAlgorithmSHA256, Select: []int{4, 7, 12}}}), check.Equals, true)
+		// NOTE: does not seem like the PCR selection list thingy has a better way to introspect itself...
+		c.Check(pcrs.String(), check.Equals, "[{hash:TPM_ALG_SHA256, select:[4 7 12]}]")
 		return nil
 	})
 	defer restore()
@@ -337,9 +312,9 @@ func (s *resealSuite) TestResealKeyBeforeNewKernel(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim1"),
 			[]byte("shim1"),
@@ -365,9 +340,9 @@ func (s *resealSuite) TestResealKeyAfterNewKernel(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim1"),
 			[]byte("shim1"),
@@ -392,9 +367,9 @@ func (s *resealSuite) TestResealKeyBeforeNewShim(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim2"),
 			[]byte("shim1"),
@@ -417,9 +392,9 @@ func (s *resealSuite) TestResealKeyAfterNewShim(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim2"),
 			[]byte("shim2"),
@@ -443,9 +418,9 @@ func (s *resealSuite) TestResealKeyBeforeRemoveKernel(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim1"),
 			[]byte("shim1"),
@@ -469,9 +444,9 @@ func (s *resealSuite) TestResealKeyAfterRemoveKernel(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim1"),
 			[]byte("shim1"),
@@ -483,7 +458,7 @@ func (s *resealSuite) TestResealKeyAfterRemoveKernel(c *check.C) {
 	})
 }
 
-func (s *resealSuite) TestResealKeyDifferentAuxiliaryKey(c *check.C) {
+func (s *resealSuite) TestResealKeyDifferentPrimaryKey(c *check.C) {
 	c.Check(s.fs.WriteFile("/dev/sda1", nil, os.ModeDevice|0660), check.IsNil)
 	s.symlink(c, "/dev/sda1", "/dev/disk/by-label/cloudimg-rootfs-enc")
 
@@ -494,9 +469,9 @@ func (s *resealSuite) TestResealKeyDifferentAuxiliaryKey(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{5, 6, 7, 8, 9},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "x64",
+		primaryKey:  []byte{5, 6, 7, 8, 9},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim2"),
 			[]byte("shim1"),
@@ -519,9 +494,9 @@ func (s *resealSuite) TestResealKeyDifferentBlockDevice(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/vda14"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/vda14"},
 		shims: [][]byte{
 			[]byte("shim2"),
 			[]byte("shim1"),
@@ -545,9 +520,9 @@ func (s *resealSuite) TestResealKeyDifferentArch(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-2-generic", []byte("kernel2"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "aa64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1"},
+		arch:        "aa64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
 		shims: [][]byte{
 			[]byte("shim1"),
 			[]byte("shim1"),
@@ -560,7 +535,7 @@ func (s *resealSuite) TestResealKeyDifferentArch(c *check.C) {
 	})
 }
 
-func (s *resealSuite) TestResealKeyGetAuxiliaryKeyFromKernelBug(c *check.C) {
+func (s *resealSuite) TestResealKeyGetPrimaryKeyFromKernelBug(c *check.C) {
 	c.Check(s.fs.WriteFile("/dev/sda1", nil, os.ModeDevice|0660), check.IsNil)
 	c.Check(s.fs.WriteFile("/dev/sda15", nil, os.ModeDevice|0660), check.IsNil)
 	s.symlink(c, "/dev/sda1", "/dev/disk/by-label/cloudimg-rootfs-enc")
@@ -574,9 +549,9 @@ func (s *resealSuite) TestResealKeyGetAuxiliaryKeyFromKernelBug(c *check.C) {
 	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
 
 	s.testResealKey(c, &testResealKeyData{
-		arch:         "x64",
-		auxiliaryKey: []byte{1, 2, 3, 4, 5, 6},
-		devicePaths:  []string{"/dev/sda1", "/dev/disk/by-partuuid/94725587-885d-4bde-bc61-078e0010057d"},
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1", "/dev/disk/by-partuuid/94725587-885d-4bde-bc61-078e0010057d"},
 		shims: [][]byte{
 			[]byte("shim2"),
 			[]byte("shim1"),
@@ -608,42 +583,40 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 	restore := s.mockEfiArch("x64")
 	defer restore()
 
-	restore = s.mockSbefiAddBootManagerProfile(func(profile *secboot_tpm2.PCRProtectionProfile, params *secboot_efi.BootManagerProfileParams) error {
+	introspectLoadChains = func(
+		pcrAlg tpm2.HashAlgorithmId,
+		rootBranch *secboot_tpm2.PCRProtectionProfileBranch,
+		loadChains []*LoadChain) {
+
 		if data.fileLeak {
-			params.LoadSequences[0].Image.Open()
+			loadChains[0].Open()
 		}
-		for _, e := range params.LoadSequences {
-			f, err := e.Image.Open()
+		for _, e := range loadChains {
+			f, err := e.Open()
 			c.Assert(err, check.IsNil)
 			f.Close()
 
 			for _, e := range e.Next {
-				f, err := e.Image.Open()
+				f, err := e.Open()
 				c.Assert(err, check.IsNil)
 				f.Close()
 			}
 		}
-		return nil
-	})
-	defer restore()
-
-	restore = s.mockSbefiAddSecureBootPolicyProfile(func(profile *secboot_tpm2.PCRProtectionProfile, params *secboot_efi.SecureBootPolicyProfileParams) error {
-		for _, e := range params.LoadSequences {
-			f, err := e.Image.Open()
+		for _, e := range loadChains {
+			f, err := e.Open()
 			c.Assert(err, check.IsNil)
 			f.Close()
 
 			for _, e := range e.Next {
-				f, err := e.Image.Open()
+				f, err := e.Open()
 				c.Assert(err, check.IsNil)
 				f.Close()
 			}
 		}
-		return nil
-	})
-	defer restore()
+	}
+	defer func() { introspectLoadChains = nil }()
 
-	restore = s.mockSbGetAuxiliaryKeyFromKernel(func(prefix, devicePath string, remove bool) (secboot.AuxiliaryKey, error) {
+	restore = s.mockSbGetPrimaryKeyFromKernel(func(prefix, devicePath string, remove bool) (secboot.PrimaryKey, error) {
 		if data.noAuxKey {
 			return nil, secboot.ErrKernelKeyNotFound
 		}
@@ -667,7 +640,7 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 	})
 	defer restore()
 
-	restore = s.mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot_tpm2.PolicyAuthKey, profile *secboot_tpm2.PCRProtectionProfile) error {
+	restore = s.mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile) error {
 		return nil
 	})
 	defer restore()
@@ -701,7 +674,7 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 	return ResealKey(assets, km, "/boot/efi", "/usr/lib/nullboot/shim", "ubuntu")
 }
 
-func (s *resealSuite) TestResealKeyUnhappyNoAuxiliaryKey(c *check.C) {
+func (s *resealSuite) TestResealKeyUnhappyNoPrimaryKey(c *check.C) {
 	err := s.testResealKeyUnhappy(c, &testResealKeyUnhappyData{
 		noAuxKey: true,
 	})
@@ -729,93 +702,94 @@ func (s *resealSuite) TestResealKeyUnhappyNoTPM(c *check.C) {
 	c.Check(err, check.ErrorMatches, "no TPM2 device is available")
 }
 
-// The TCG log writing code is borrowed from github.com:snapcore/secboot tools/make-efi-testdata/logs.go
-// to avoid checking in a binary log
+// The TCG log writing code is borrowed from github.com:canonical/secboot to avoid checking in a binary log
 
-type event struct {
-	PCRIndex  tcglog.PCRIndex
-	EventType tcglog.EventType
-	Data      tcglog.EventData
-}
-
-type eventData interface {
+type logHashData interface {
 	Write(w io.Writer) error
 }
 
-type bytesData []byte
+type bytesHashData []byte
 
-func (d bytesData) Write(w io.Writer) error {
+func (d bytesHashData) Write(w io.Writer) error {
 	_, err := w.Write(d)
 	return err
 }
 
-type logWriter struct {
+type logEvent struct {
+	pcrIndex  tpm2.Handle
+	eventType tcglog.EventType
+	data      tcglog.EventData
+}
+
+type logBuilder struct {
 	algs   []tpm2.HashAlgorithmId
 	events []*tcglog.Event
 }
 
-func newCryptoAgileLogWriter() *logWriter {
-	event := &tcglog.Event{
-		PCRIndex:  0,
-		EventType: tcglog.EventTypeNoAction,
-		Digests:   tcglog.DigestMap{tpm2.HashAlgorithmSHA1: make(tcglog.Digest, tpm2.HashAlgorithmSHA1.Size())},
-		Data: &tcglog.SpecIdEvent03{
-			SpecVersionMajor: 2,
-			UintnSize:        2,
-			DigestSizes: []tcglog.EFISpecIdEventAlgorithmSize{
-				{AlgorithmId: tpm2.HashAlgorithmSHA1, DigestSize: uint16(tpm2.HashAlgorithmSHA1.Size())},
-				{AlgorithmId: tpm2.HashAlgorithmSHA256, DigestSize: uint16(tpm2.HashAlgorithmSHA256.Size())}}}}
-
-	return &logWriter{
-		algs:   []tpm2.HashAlgorithmId{tpm2.HashAlgorithmSHA1, tpm2.HashAlgorithmSHA256},
-		events: []*tcglog.Event{event}}
-}
-
-func (w *logWriter) hashLogExtendEvent(data eventData, event *event) {
+func (b *logBuilder) hashLogExtendEvent(c *check.C, data logHashData, event *logEvent) {
 	ev := &tcglog.Event{
-		PCRIndex:  event.PCRIndex,
-		EventType: event.EventType,
+		PCRIndex:  event.pcrIndex,
+		EventType: event.eventType,
 		Digests:   make(tcglog.DigestMap),
-		Data:      event.Data}
+		Data:      event.data}
 
-	for _, alg := range w.algs {
+	for _, alg := range b.algs {
 		h := alg.NewHash()
-		if err := data.Write(h); err != nil {
-			panic(err)
-		}
+		c.Assert(data.Write(h), check.IsNil)
 		ev.Digests[alg] = h.Sum(nil)
 	}
 
-	w.events = append(w.events, ev)
-
+	b.events = append(b.events, ev)
 }
 
 func (s *resealSuite) writeMockTcglog(c *check.C) {
-	w := newCryptoAgileLogWriter()
+	builder := &logBuilder{algs: []tpm2.HashAlgorithmId{tpm2.HashAlgorithmSHA1, tpm2.HashAlgorithmSHA256}}
+
+	var digestSizes []tcglog.EFISpecIdEventAlgorithmSize
+	for _, alg := range builder.algs {
+		digestSizes = append(digestSizes,
+			tcglog.EFISpecIdEventAlgorithmSize{
+				AlgorithmId: alg,
+				DigestSize:  uint16(alg.Size()),
+			})
+	}
+
+	builder.events = []*tcglog.Event{
+		{
+			PCRIndex:  0,
+			EventType: tcglog.EventTypeNoAction,
+			Digests:   tcglog.DigestMap{tpm2.HashAlgorithmSHA1: make(tpm2.Digest, tpm2.HashAlgorithmSHA1.Size())},
+			Data: &tcglog.SpecIdEvent03{
+				SpecVersionMajor: 2,
+				UintnSize:        2,
+				DigestSizes:      digestSizes,
+			},
+		},
+	}
 
 	{
 		data := &tcglog.SeparatorEventData{Value: tcglog.SeparatorEventNormalValue}
-		w.hashLogExtendEvent(data, &event{
-			PCRIndex:  7,
-			EventType: tcglog.EventTypeSeparator,
-			Data:      data})
+		builder.hashLogExtendEvent(c, data, &logEvent{
+			pcrIndex:  7,
+			eventType: tcglog.EventTypeSeparator,
+			data:      data})
 	}
 	{
 		data := tcglog.EFICallingEFIApplicationEvent
-		w.hashLogExtendEvent(data, &event{
-			PCRIndex:  4,
-			EventType: tcglog.EventTypeEFIAction,
-			Data:      data})
+		builder.hashLogExtendEvent(c, data, &logEvent{
+			pcrIndex:  4,
+			eventType: tcglog.EventTypeEFIAction,
+			data:      data})
 	}
-	for _, pcr := range []tcglog.PCRIndex{0, 1, 2, 3, 4, 5, 6} {
+	for _, pcr := range []tpm2.Handle{0, 1, 2, 3, 4, 5, 6} {
 		data := &tcglog.SeparatorEventData{Value: tcglog.SeparatorEventNormalValue}
-		w.hashLogExtendEvent(data, &event{
-			PCRIndex:  pcr,
-			EventType: tcglog.EventTypeSeparator,
-			Data:      data})
+		builder.hashLogExtendEvent(c, data, &logEvent{
+			pcrIndex:  pcr,
+			eventType: tcglog.EventTypeSeparator,
+			data:      data})
 	}
 	{
-		pe := bytesData("mock shim PE")
+		pe := bytesHashData("mock shim PE")
 		data := &tcglog.EFIImageLoadEvent{
 			LocationInMemory: 0x6556c018,
 			LengthInMemory:   955072,
@@ -831,7 +805,7 @@ func (s *resealSuite) writeMockTcglog(c *check.C) {
 					Device:   0x0},
 				&efi.NVMENamespaceDevicePathNode{
 					NamespaceID:   0x1,
-					NamespaceUUID: 0x0},
+					NamespaceUUID: efi.EUI64{}},
 				&efi.HardDriveDevicePathNode{
 					PartitionNumber: 1,
 					PartitionStart:  0x800,
@@ -839,26 +813,26 @@ func (s *resealSuite) writeMockTcglog(c *check.C) {
 					Signature:       efi.GUIDHardDriveSignature(efi.MakeGUID(0x66de947b, 0xfdb2, 0x4525, 0xb752, [...]uint8{0x30, 0xd6, 0x6b, 0xb2, 0xb9, 0x60})),
 					MBRType:         efi.GPT},
 				efi.FilePathDevicePathNode("\\EFI\\ubuntu\\shimx64.efi")}}
-		w.hashLogExtendEvent(pe, &event{
-			PCRIndex:  4,
-			EventType: tcglog.EventTypeEFIBootServicesApplication,
-			Data:      data})
+		builder.hashLogExtendEvent(c, pe, &logEvent{
+			pcrIndex:  4,
+			eventType: tcglog.EventTypeEFIBootServicesApplication,
+			data:      data})
 	}
 	{
-		pe := bytesData("mock kernel PE")
+		pe := bytesHashData("mock kernel PE")
 		data := &tcglog.EFIImageLoadEvent{
 			DevicePath: efi.DevicePath{efi.FilePathDevicePathNode("\\EFI\\ubuntu\\kernel.efi-1.0-1-generic")}}
-		w.hashLogExtendEvent(pe, &event{
-			PCRIndex:  4,
-			EventType: tcglog.EventTypeEFIBootServicesApplication,
-			Data:      data})
+		builder.hashLogExtendEvent(c, pe, &logEvent{
+			pcrIndex:  4,
+			eventType: tcglog.EventTypeEFIBootServicesApplication,
+			data:      data})
 	}
 
 	f, err := s.fs.OpenFile("/sys/kernel/security/tpm0/binary_bios_measurements", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	c.Assert(err, check.IsNil)
 	defer f.Close()
 
-	c.Check(tcglog.WriteLog(f, w.events), check.IsNil)
+	c.Check(tcglog.NewLogForTesting(builder.events).Write(f), check.IsNil)
 }
 
 func (s *resealSuite) mockEfiComputePeImageDigest(fn func(alg crypto.Hash, r io.ReaderAt, sz int64) ([]byte, error)) (restore func()) {
