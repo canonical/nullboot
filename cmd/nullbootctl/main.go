@@ -4,15 +4,26 @@
 
 package main
 
+import "golang.org/x/sys/unix"
 import "github.com/canonical/nullboot/efibootmgr"
 import "flag"
 import "log"
 import "os"
+import "syscall"
 
 var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
 var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
 var outputJSON = flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
 var noBootNext = flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+
+func syncDirectory(dir string) error {
+	dirFd, err := syscall.Open(dir, syscall.O_RDONLY|syscall.O_DIRECTORY, 0755)
+	if err != nil {
+		return err
+	}
+	_, _, err = unix.Syscall(unix.SYS_SYNCFS, uintptr(dirFd), 0, 0)
+	return err
+}
 
 func main() {
 	var assets *efibootmgr.TrustedAssets
@@ -91,11 +102,19 @@ func main() {
 	if updatedShim {
 		log.Print("Updated shim")
 	}
-	// Install new kernels and commit to bootloader config. This
-	// way
+
+	// Install new kernels, and sync the file system to make sure the kernels are installed,
+	// then register them in the boot order.
+	// APT manages a list of kernels for us, here we add the new ones that were installed;
+	// kernel packages that were removed but are still in the ESP will be removed in the next
+	// block.
 	if err = km.InstallKernels(); err != nil {
 		log.Print(err)
 		os.Exit(1)
+	}
+	if err = syncDirectory(esp); err != nil {
+		log.Print(err)
+		err = nil // not a hard failure
 	}
 
 	if err = km.RegisterNewKernelEFIs(); err != nil {
