@@ -107,52 +107,74 @@ func (bm *BootManager) NextFreeEntry() (int, error) {
 //
 // The argument relativeTo specifies the directory entry.Filename is in.
 func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (int, error) {
-	bootNext, err := bm.NextFreeEntry()
+	// Try to find entry
+	bootEntryVar, err := bm.FindBootEntryVar(&entry, relativeTo)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("Unable to determine if entry exists: %v", err)
 	}
-	variable := fmt.Sprintf("Boot%04X", bootNext)
 
+	// Entry was found; return
+	if bootEntryVar != nil {
+		return bootEntryVar.BootNumber, nil
+	}
+
+	// Entry was not found; generate requisite data
 	dp, err := bm.efivars.NewFileDevicePath(path.Join(relativeTo, entry.Filename), efi_linux.ShortFormPathHD)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("Unable to derive device path: %v", err)
 	}
-
-	optionalData := new(bytes.Buffer)
-	binary.Write(optionalData, binary.LittleEndian, efi.ConvertUTF8ToUCS2(entry.Options+"\x00"))
-
-	loadoption := &efi.LoadOption{
-		Attributes:   efi.LoadOptionActive,
-		Description:  entry.Label,
-		FilePath:     dp,
-		OptionalData: optionalData.Bytes()}
-
-	loadoptionBytes, err := loadoption.Bytes()
+	bootNext, err := bm.NextFreeEntry()
 	if err != nil {
-		return -1, fmt.Errorf("cannot encode load option: %v", err)
+		return -1, fmt.Errorf("Unable to generate a new boot number: %v", err)
 	}
 
-	entryVar := BootEntryVariable{
-		BootNumber: bootNext,
-		Data:       loadoptionBytes,
-		Attributes: efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess,
-		LoadOption: loadoption,
+	// Create Entry Variable
+	entryVar, err := CreateEntryVar(&entry, bootNext, dp)
+	if err != nil {
+		return -1, fmt.Errorf("Unable to create the boot entry variable: %v", err)
 	}
 
-	// Detect duplicates and ignore
-	for _, existingVar := range bm.entries {
-		if bytes.Equal(existingVar.Data, entryVar.Data) && existingVar.Attributes == entryVar.Attributes {
-			return existingVar.BootNumber, nil
-		}
+	// Set system boot variable for new entry
+	err = bm.SetBootEntryVariable(entryVar)
+	if err != nil {
+		return entryVar.BootNumber, fmt.Errorf("Unable to set environment variables for Boot%04X: %v", entryVar.BootNumber, err)
 	}
+	return entryVar.BootNumber, nil
+}
+
+// FindBootEntryVar finds a matching entry in the boot device selection menu
+// associated to the input BootEntry in a relative directory.
+//
+// It returns the entry variable, or nil if not found, with error set where
+// applicable.
+//
+// The argument relativeTo specifies the directory entry.Filename is in.
+func (bm *BootManager) FindBootEntryVar(entry *BootEntry, relativeTo string) (*BootEntryVariable, error) {
+	dp, err := bm.efivars.NewFileDevicePath(path.Join(relativeTo, entry.Filename), efi_linux.ShortFormPathHD)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to derive device path: %v", err)
+	}
+	loadOption := getLoadOption(entry, dp)
+	data, err := loadOption.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("Unable to encode load option for %s: %v", entry.Label, err)
+	}
+	attrib := defaultAttrib()
+	return findBootEntryVar(bm.entries, data, attrib), nil
+}
+
+// SetBootEntryVariable creates a system boot variable from the provided
+// BootEntryVariable.
+//
+// It returns an error should there be an issue setting the system variable.
+func (bm *BootManager) SetBootEntryVariable(entryVar *BootEntryVariable) error {
+	variable := fmt.Sprintf("Boot%04X", entryVar.BootNumber)
 
 	if err := bm.efivars.SetVariable(efi.GlobalVariable, variable, entryVar.Data, entryVar.Attributes); err != nil {
-		return -1, err
+		return err
 	}
-
-	bm.entries[bootNext] = entryVar
-
-	return bootNext, nil
+	bm.entries[entryVar.BootNumber] = *entryVar
+	return nil
 }
 
 // DeleteEntry deletes an entry and updates the cached boot order.
@@ -223,4 +245,71 @@ func (bm *BootManager) PrependAndSetBootOrder(head []int) error {
 	bm.bootOrder = newOrder
 	return nil
 
+}
+
+// getLoadOption derives a standardized LoadOption from a specified entry
+// and device path.
+//
+// It returns a pointer to the new LoadOption.
+func getLoadOption(entry *BootEntry, dp efi.DevicePath) *efi.LoadOption {
+	optionalData := GetEntryVarData(entry)
+	loadoption := &efi.LoadOption{
+		Attributes:   efi.LoadOptionActive,
+		Description:  entry.Label,
+		FilePath:     dp,
+		OptionalData: optionalData}
+
+	return loadoption
+}
+
+// CreateEntryVar creates a BootEntryVariable derived from a BootEntry,
+// given a boot number and device path.
+//
+// Returns a pointer to a BootEntryVariable if the operation is successful
+// or otherwise, returns nil and an error.
+func CreateEntryVar(entry *BootEntry, bootNum int, dp efi.DevicePath) (*BootEntryVariable, error) {
+	loadoption := getLoadOption(entry, dp)
+	data, err := loadoption.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("cannot encode boot entry data: %v", err)
+	}
+	attrib := defaultAttrib()
+
+	entryVar := BootEntryVariable{
+		BootNumber: bootNum,
+		Data:       data,
+		Attributes: attrib,
+		LoadOption: loadoption,
+	}
+
+	return &entryVar, nil
+}
+
+// GetEntryVarData standardizes the collection of data from a BootEntry in
+// the form of a BootEntryVariable's Data field.
+//
+// Returns a slice of LittleEndian, UCS2 formatted bytes.
+func GetEntryVarData(entry *BootEntry) []byte {
+	optionalData := new(bytes.Buffer)
+	binary.Write(optionalData, binary.LittleEndian, efi.ConvertUTF8ToUCS2(entry.Options+"\x00"))
+	return optionalData.Bytes()
+}
+
+// findBootEntryVar determines whether the given data and attributes match
+// any BootEntryVariable in a map of BootEntryVariables
+//
+// Returns the pointer to the BootEntryVariable or nil if there is no
+// match.
+func findBootEntryVar(entryVars map[int]BootEntryVariable, data []byte, attrib efi.VariableAttributes) *BootEntryVariable {
+	for _, existingVar := range entryVars {
+		if bytes.Equal(existingVar.Data, data) && existingVar.Attributes == attrib {
+			return &existingVar
+		}
+	}
+	return nil
+}
+
+// defaultAttrib generates a set of standard attributes for boot variables
+func defaultAttrib() efi.VariableAttributes {
+	return efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess
 }
