@@ -220,10 +220,10 @@ func (km *KernelManager) CommitToBootLoader() error {
 // Returns an error if the entry does not yet exist as a BootEntryVariable
 // or if there is an error setting BootNext.
 func (km *KernelManager) SetLatestKernelToBootNext() error {
-	// NOTE: km.bootEntries[0] is expected to be latest kernel due to the
-	// readKernels method that orders kernels by version before they are
-	// installed and populated into bootEntries via InstallKernels
-	latestKernel := km.bootEntries[0]
+	latestKernel, err := km.GetLatestKernelEntry()
+	if err != nil {
+		return fmt.Errorf("unable to get latest kernel entry: %w", err)
+	}
 	latestKernelEntryVar, err := km.bootManager.FindBootEntryVariable(latestKernel, km.targetDir)
 	if err != nil {
 		return fmt.Errorf("unable to find boot variable for %s, %v: %w", latestKernel.Label, latestKernel.Options, err)
@@ -233,4 +233,36 @@ func (km *KernelManager) SetLatestKernelToBootNext() error {
 	}
 
 	return nil
+}
+
+func (km *KernelManager) IsCurrentBootLatest() (bool, error) {
+	if len(km.bootEntries) == 0 {
+		return false, fmt.Errorf("no Ubuntu Kernel EFIs have been loaded")
+	}
+
+	latestKernelEntry, err := km.GetLatestKernelEntry()
+	if err != nil {
+		return false, fmt.Errorf("unable to get latest kernel entry: %w", err)
+	}
+	latestKernelEntryVar, err := km.bootManager.FindBootEntryVariable(latestKernelEntry, km.targetDir)
+	if err != nil {
+		return false, fmt.Errorf("unable to find latest kernel boot variable: %w", err)
+	}
+
+	// Determine if the BootEntryVariable is the BootCurrent variable
+	if latestKernelEntryVar.BootNumber == km.bootManager.bootCurrent {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
+func (km *KernelManager) GetLatestKernelEntry() (BootEntry, error) {
+	// NOTE: km.bootEntries[0] is expected to be latest kernel due to the
+	// readKernels method that orders kernels by version before they are
+	// installed and populated into bootEntries via InstallKernels
+	if len(km.bootEntries) > 0 {
+		return km.bootEntries[0], nil
+	}
+	return BootEntry{}, fmt.Errorf("no kernels have been registered to the KernelManager")
 }
