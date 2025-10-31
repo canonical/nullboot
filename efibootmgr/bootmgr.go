@@ -68,6 +68,7 @@ type BootManager struct {
 	efivars        EFIVariables              // EFIVariables implementation
 	entries        map[int]BootEntryVariable // The Boot<number> variables
 	bootOrder      []int                     // The BootOrder variable, parsed
+	bootCurrent    int                       // The BootCurrent variable, parsed
 	bootOrderAttrs efi.VariableAttributes    // The attributes of BootOrder variable
 }
 
@@ -84,6 +85,21 @@ func NewBootManagerForVariables(efivars EFIVariables) (BootManager, error) {
 
 	if !VariablesSupported(efivars) {
 		return BootManager{}, fmt.Errorf("Variables not supported")
+	}
+
+	if bootCurrentBytes, _, err := bm.efivars.GetVariable(efi.GlobalVariable, "BootCurrent"); err != nil {
+		switch bm.efivars.(type) {
+		// BootCurrent is a volatile entry that is created upon a
+		// successful boot into some boot entry. Since MockEFIVariables is
+		// not representing a live host, BootCurrent does not need to exist
+		case *MockEFIVariables:
+			log.Printf("Could not read BootCurrent variable, populating with default (%d), error was: %v\n", invalidBootNumber, err)
+			bm.bootCurrent = invalidBootNumber
+		default:
+			return BootManager{}, fmt.Errorf("could not read BootCurrent variable, error was: %w\n", err)
+		}
+	} else {
+		bm.bootCurrent = int(binary.LittleEndian.Uint16(bootCurrentBytes[0:2]))
 	}
 
 	bootOrderBytes, bootOrderAttrs, err := bm.efivars.GetVariable(efi.GlobalVariable, "BootOrder")
@@ -247,6 +263,15 @@ func (bm *BootManager) DeleteEntry(bootNum int) error {
 	}
 	delete(bm.entries, bootNum)
 
+	// Deleting BootCurrent is not a good idea. It can put your system at
+	// risk. apt won't delete the user's BootCurrent artifacts, so this has
+	// to be an action caused by a bug or a mistaken user; however, if the
+	// user truly deleted all artifacts associated to BootCurrent, the FDE
+	// key is likely resealed at this point without those artifacts, and
+	// removing this entry won't lead to any **more** mistakes.
+	if bootNum == bm.bootCurrent {
+		log.Printf("the entry associated to BootCurrent (%s) has been deleted\n", toEFIBootEntryFormat(bootNum))
+	}
 	var newOrder []int
 
 	for _, orderEntry := range bm.bootOrder {
