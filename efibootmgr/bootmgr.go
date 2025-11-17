@@ -229,22 +229,23 @@ func (bm *BootManager) PrependAndSetBootOrder(head []int) error {
 		}
 	}
 
-	// Encode the boot order to bytes
-	var output []byte
-	for _, num := range newOrder {
-		var numBytes [2]byte
-		binary.LittleEndian.PutUint16(numBytes[0:], uint16(num))
-		output = append(output, numBytes[0], numBytes[1])
-	}
+	err := bm.SetBootOrder(newOrder)
+	return err
+}
+
+// SetBootOrder sets the system BootOrder variable to the encoded values of
+// the input slice.
+//
+// Returns an error in the event that the variable cannot be set.
+func (bm *BootManager) SetBootOrder(bootOrder []int) error {
+	output := EncodeBootOrder(bootOrder)
 
 	// Set the boot order and update our cache
 	if err := bm.efivars.SetVariable(efi.GlobalVariable, "BootOrder", output, bm.bootOrderAttrs); err != nil {
-		return err
+		return fmt.Errorf("Unable to set BootOrder: %v", err)
 	}
-
-	bm.bootOrder = newOrder
+	bm.bootOrder = bootOrder
 	return nil
-
 }
 
 // getLoadOption derives a standardized LoadOption from a specified entry
@@ -312,4 +313,27 @@ func findBootEntryVar(entryVars map[int]BootEntryVariable, data []byte, attrib e
 // defaultAttrib generates a set of standard attributes for boot variables
 func defaultAttrib() efi.VariableAttributes {
 	return efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess
+}
+
+// EncodeBootOrder reformats the bootOrder input for system use.
+//
+// Returns a slice of little-endian uint16s.
+func EncodeBootOrder(bootOrder []int) []byte {
+	// Encode the boot order to bytes
+	var output []byte
+	for _, num := range bootOrder {
+		bootNumBytes := getBootNumBytes(num)
+		output = append(output, bootNumBytes[0], bootNumBytes[1])
+	}
+	return output
+}
+
+// getBootNumBytes converts a boot number integer into the system format.
+//
+// Returns a 2-length []byte of little-endian oriented uint16s.
+func getBootNumBytes(bootNum int) []byte {
+	numBytes := make([]byte, 2)
+	binary.LittleEndian.PutUint16(numBytes[:], uint16(bootNum))
+	return numBytes
+
 }
