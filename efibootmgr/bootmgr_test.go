@@ -180,6 +180,59 @@ func TestBootManagerSetBootOrder(t *testing.T) {
 	}
 }
 
+func TestBootManagerSetBootNext(t *testing.T) {
+	mockvars := MockEFIVariables{
+		map[efi.VariableDescriptor]mockEFIVariable{
+			{GUID: efi.GlobalVariable, Name: "BootOrder"}: {[]byte{1, 0, 2, 0, 3, 0}, 123},
+			{GUID: efi.GlobalVariable, Name: "Boot0001"}:  {UsbrBootCdromOptBytes, 42},
+		},
+	}
+	expected := 1
+	expectedBytes := toEFIBootEntryBytes(expected)
+	expectedName := toEFIBootEntryFormat(expected)
+	bm, err := NewBootManagerForVariables(&mockvars)
+	if err != nil {
+		t.Fatalf("Could not create boot manager: %v", err)
+	}
+	if err := bm.SetBootNext(expected); err != nil {
+		t.Fatalf("Could not set BootNext to %s: %v", expectedName, err)
+	}
+
+	if bm.bootNext != expected {
+		t.Errorf("Expected internal bootNext to be %d, got %v", expected, bm.bootNext)
+	}
+	bootNextBytes := mockvars.store[efi.VariableDescriptor{GUID: efi.GlobalVariable, Name: "BootNext"}].data
+	if !bytes.Equal(bootNextBytes, expectedBytes) {
+		t.Errorf("Expected actual BootNext to be %v, got %v.", expectedBytes, bootNextBytes)
+	}
+}
+
+func TestBootManagerSetBootNextFail(t *testing.T) {
+	mockvars := MockEFIVariables{
+		map[efi.VariableDescriptor]mockEFIVariable{},
+	}
+	bm, err := NewBootManagerForVariables(&mockvars)
+	if err != nil {
+		t.Fatalf("Could not create boot manager: %v", err)
+	}
+	// No variables exist, so this should fail
+	if err := bm.SetBootNext(0); err == nil {
+		t.Error("SetBootNext should fail to complete")
+	}
+
+	if bm.bootNext != invalidBootNumber {
+		t.Errorf(
+			"Expected internal bootNext to be %d, got %d",
+			invalidBootNumber,
+			bm.bootNext,
+		)
+	}
+	bootNextBytes := mockvars.store[efi.VariableDescriptor{GUID: efi.GlobalVariable, Name: "BootNext"}].data
+	if !bytes.Equal(bootNextBytes, []byte{}) {
+		t.Errorf("Expected actual BootNext to be empty, got %v.", bootNextBytes)
+	}
+}
+
 func TestBootManager_json(t *testing.T) {
 	memFs := afero.NewMemMapFs()
 	appFs = MapFS{memFs}

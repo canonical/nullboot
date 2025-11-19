@@ -214,3 +214,23 @@ func (km *KernelManager) CommitToBootLoader() error {
 
 	return nil
 }
+
+// SetLatestKernelToBootNext sets the latest kernel to be BootNext.
+//
+// Returns an error if the entry does not yet exist as a BootEntryVariable
+// or if there is an error setting BootNext.
+func (km *KernelManager) SetLatestKernelToBootNext() error {
+	// NOTE: km.bootEntries[0] is expected to be latest kernel due to the
+	// readKernels method that orders kernels by version before they are
+	// installed and populated into bootEntries via InstallKernels
+	latestKernel := km.bootEntries[0]
+	latestKernelEntryVar, err := km.bootManager.FindBootEntryVariable(latestKernel, km.targetDir)
+	if err != nil {
+		return fmt.Errorf("unable to find boot variable for %s, %v: %w", latestKernel.Label, latestKernel.Options, err)
+	}
+	if err := km.bootManager.SetBootNext(latestKernelEntryVar.BootNumber); err != nil {
+		return fmt.Errorf("unable to set BootNext to Boot%04X (%s): %w", latestKernelEntryVar.BootNumber, latestKernel.Label, err)
+	}
+
+	return nil
+}
