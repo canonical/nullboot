@@ -1,0 +1,16 @@
+[Unit]
+Description=Ammend boot loader on successful kernel upgrades for TPM-backed FDE instances
+
+# Runs after basic system initialization and local filesystems are mounted.
+# This ensures a stable environment before proceeding to higher-level services.
+After=sysinit.target local-fs.target
+
+[Service]
+Type=oneshot
+
+# If BootCurrent is the latest kernel, update BootOrder
+# Also ensures a bad kernel is not reset to BootNext if a boot was unsuccessful
+ExecStart=/usr/bin/nullbootctl -no-boot-next
+
+[Install]
+WantedBy=multi-user.target

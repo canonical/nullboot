@@ -1,9 +1,11 @@
 #!/bin/sh
 set -e
-if [ "$1" = "triggered" ] || [ "$1" = "configure" ]; then
-    if [ -e "/boot/efi/EFI/ubuntu/" ]; then
-        nullbootctl
-    fi
+if [ "$1" = "configure" ] && [ -e "/boot/efi/EFI/ubuntu/" ]; then
+    systemctl enable nullboot-fallback.service
+    nullbootctl
+fi
+if [ "$1" = "triggered" ] && [ -e "/boot/efi/EFI/ubuntu/" ]; then
+    nullbootctl
 fi
 
 #DEBHELPER#
