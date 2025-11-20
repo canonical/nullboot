@@ -27,6 +27,9 @@ override_dh_gencontrol:
 	dh_gencontrol -- -Vshim-signed:Version=$(SHIM_SIGNED_VERSION)
 
 override_dh_auto_install:
+	mkdir -p debian/nullboot/etc/systemd/system
+	cp debian/nullboot-fallback.service debian/nullboot/etc/systemd/system/
+	chmod +x debian/nullboot/etc/systemd/system/nullboot-fallback.service
 	mkdir -p debian/nullboot/usr/lib/nullboot/shim
 	cp $(SHIM_DIR)/shim*.signed $(SHIM_DIR)/fb*.efi $(SHIM_DIR)/mm*.efi debian/nullboot/usr/lib/nullboot/shim
 	dh_auto_install -- --no-source
