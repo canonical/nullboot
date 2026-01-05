@@ -20,6 +20,7 @@ import (
 const (
 	maxBootEntries = 65535 // Maximum number of boot entries we can hold
 )
+const invalidBootNumber = -1
 const defaultBootVariableAttributes = efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess
 
 type BootVarNotFoundError struct {
@@ -131,13 +132,13 @@ func (bm *BootManager) NextFreeEntry() (int, error) {
 		}
 	}
 
-	return -1, fmt.Errorf("Maximum number of boot entries exceeded")
+	return invalidBootNumber, fmt.Errorf("Maximum number of boot entries exceeded")
 }
 
 // FindOrCreateEntry finds a matching entry in the boot device selection menu,
 // or creates one if it is missing.
 //
-// It returns the number of the entry created, or -1 on failure, with error set.
+// It returns the number of the entry created, or invalidBootNumber on failure, with error set.
 //
 // The argument relativeTo specifies the directory entry.Filename is in.
 func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (int, error) {
@@ -148,7 +149,7 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (in
 		var notFoundError *BootVarNotFoundError
 		if !errors.As(err, &notFoundError) {
 			err = fmt.Errorf("unable to determine if boot entry %s exists: %w", entry.Label, err)
-			return -1, err
+			return invalidBootNumber, err
 		}
 	}
 
@@ -156,16 +157,16 @@ func (bm *BootManager) FindOrCreateEntry(entry BootEntry, relativeTo string) (in
 	dpStr := path.Join(relativeTo, entry.Filename)
 	dp, err := bm.efivars.NewFileDevicePath(dpStr, efi_linux.ShortFormPathHD)
 	if err != nil {
-		return -1, fmt.Errorf("unable to derive device path %s: %w", dpStr, err)
+		return invalidBootNumber, fmt.Errorf("unable to derive device path %s: %w", dpStr, err)
 	}
 	freeEntryNumber, err := bm.NextFreeEntry()
 	if err != nil {
-		return -1, fmt.Errorf("unable to generate a new boot number: %w", err)
+		return invalidBootNumber, fmt.Errorf("unable to generate a new boot number: %w", err)
 	}
 
 	entryVar, err := NewBootEntryVariable(entry, freeEntryNumber, dp)
 	if err != nil {
-		return -1, fmt.Errorf("unable to create the boot entry variable: %w", err)
+		return invalidBootNumber, fmt.Errorf("unable to create the boot entry variable: %w", err)
 	}
 
 	// Entry needs to be added as a boot entry
