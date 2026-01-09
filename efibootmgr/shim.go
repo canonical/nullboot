@@ -23,6 +23,23 @@ type BootEntry struct {
 	Description string
 }
 
+func NewKernelBootEntry(vendor string, kernelName string, kernelOptions string) BootEntry {
+	version := getKernelABI(kernelName)
+	// It is worth pointing out that the argument for shim should start with \
+	// which here somehow denotes it is in the same directory rather than the root.
+	// FIXME: Extract vendor name out into config file
+	options := "\\" + kernelName
+	if kernelOptions != "" {
+		options += " " + kernelOptions
+	}
+	return BootEntry{
+		Filename:    "shim" + GetEfiArchitecture() + ".efi",
+		Label:       fmt.Sprintf("%s with kernel %s", vendor, version),
+		Options:     options,
+		Description: fmt.Sprintf("%s entry for kernel %s", vendor, version),
+	}
+}
+
 // architectureMaps maps from GOARCH to host
 var architectureMap = map[string]string{
 	"386":      "ia32",
