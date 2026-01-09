@@ -108,20 +108,10 @@ func (km *KernelManager) InstallKernels() error {
 		if updated {
 			log.Printf("Installed or updated kernel %s", sk)
 		}
-		// It is worth pointing out that the argument for shim should start with \
-		// which here somehow denotes it is in the same directory rather than the root.
-		// FIXME: Extract vendor name out into config file
-		skVersion := getKernelABI(sk)
-		options := "\\" + sk
-		if km.kernelOptions != "" {
-			options += " " + km.kernelOptions
-		}
-		km.bootEntries = append(km.bootEntries, BootEntry{
-			Filename:    "shim" + GetEfiArchitecture() + ".efi",
-			Label:       fmt.Sprintf("Ubuntu with kernel %s", skVersion),
-			Options:     options,
-			Description: fmt.Sprintf("Ubuntu entry for kernel %s", skVersion),
-		})
+		km.bootEntries = append(
+			km.bootEntries,
+			NewKernelBootEntry("Ubuntu", sk, km.kernelOptions),
+		)
 	}
 
 	return nil
