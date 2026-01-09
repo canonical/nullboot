@@ -117,6 +117,18 @@ func (km *KernelManager) InstallKernels() error {
 	return nil
 }
 
+// RegisterNewKernelEFIs creates EFI variables for each new kernel
+// installed via InstallKernels, adding them to the BootManager and
+// creating the variables on the host machine.
+func (km *KernelManager) RegisterNewKernelEFIs() error {
+	for _, entry := range km.bootEntries {
+		if _, err := km.bootManager.FindOrCreateEntry(entry, km.targetDir); err != nil {
+			return fmt.Errorf("unable to find or create EFI boot entry for %s: %w", entry.Label, err)
+		}
+	}
+	return nil
+}
+
 // IsObsoleteKernel checks whether a kernel is obsolete.
 func (km *KernelManager) isObsoleteKernel(k string) bool {
 	for _, sk := range km.sourceKernels {
@@ -168,11 +180,11 @@ func (km *KernelManager) CommitToBootLoader() error {
 
 	// Add new entries, find existing ones and build target boot order
 	for _, entry := range km.bootEntries {
-		bootNum, err := km.bootManager.FindOrCreateEntry(entry, km.targetDir)
+		entryVar, err := km.bootManager.FindBootEntryVariable(entry, km.targetDir)
 		if err != nil {
-			return fmt.Errorf("Failure to add boot entry for %s: %w", entry.Label, err)
+			return fmt.Errorf("failure to find boot entry for %s: %w", entry.Label, err)
 		}
-		ourBootOrder = append(ourBootOrder, bootNum)
+		ourBootOrder = append(ourBootOrder, entryVar.BootNumber)
 	}
 
 	// Delete any obsolete kernels

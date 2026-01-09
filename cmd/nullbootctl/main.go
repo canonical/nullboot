@@ -96,6 +96,12 @@ func main() {
 		log.Print(err)
 		os.Exit(1)
 	}
+
+	if err = km.RegisterNewKernelEFIs(); err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+
 	if err = km.CommitToBootLoader(); err != nil {
 		log.Print(err)
 		os.Exit(1)
