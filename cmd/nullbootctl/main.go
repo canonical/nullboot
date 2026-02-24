@@ -4,14 +4,25 @@
 
 package main
 
+import "golang.org/x/sys/unix"
 import "github.com/canonical/nullboot/efibootmgr"
 import "flag"
 import "log"
 import "os"
+import "syscall"
 
 var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
 var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables")
 var outputJSON = flag.String("output-json", "", "JSON file to write (also disables writing real EFI variables)")
+
+func syncDirectory(dir string) error {
+	dirFd, err := syscall.Open(dir, syscall.O_RDONLY|syscall.O_DIRECTORY, 0755)
+	if err != nil {
+		return err
+	}
+	_, _, err = unix.Syscall(unix.SYS_SYNCFS, uintptr(dirFd), 0, 0)
+	return err
+}
 
 func main() {
 	var assets *efibootmgr.TrustedAssets
@@ -90,17 +101,28 @@ func main() {
 	if updatedShim {
 		log.Print("Updated shim")
 	}
-	// Install new kernels and commit to bootloader config. This
-	// way
+
+	// Install new kernels, and sync the file system to make sure the kernels are installed,
+	// then register them in the boot order.
+	// APT manages a list of kernels for us, here we add the new ones that were installed;
+	// kernel packages that were removed but are still in the ESP will be removed in the next
+	// block.
 	if err = km.InstallKernels(); err != nil {
 		log.Print(err)
 		os.Exit(1)
+	}
+	if err = syncDirectory(esp); err != nil {
+		log.Print(err)
+		err = nil // not a hard failure
 	}
 	if err = km.CommitToBootLoader(); err != nil {
 		log.Print(err)
 		os.Exit(1)
 	}
-	// Cleanup old entries
+
+	// Cleanup old entries and remove them from the boot order. We do this after adding
+	// the kernels to ensure the kernels have been safely written to the disk and registered
+	// before removing the old ones so we do not end up losing bootability.
 	if err = km.RemoveObsoleteKernels(); err != nil {
 		log.Print(err)
 		os.Exit(1)
