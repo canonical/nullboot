@@ -251,6 +251,21 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 	targetDir := "/boot/efi/EFI/ubuntu"
 	sourceDir := "/usr/lib/linux"
 
+	// Shim file is needed to create BootEntryVariable's since it is the
+	// DevicePath value for all of them
+	shimPath := path.Join(targetDir, "shimx64.efi")
+	afero.WriteFile(memFs, shimPath, []byte("file a"), 0644)
+
+	efivars := MockEFIVariables{}
+	bm, err := NewBootManagerForVariables(&efivars)
+	if err != nil {
+		t.Fatalf("unable to create BootManager: %v", err)
+	}
+	shimDp, err := bm.efivars.NewFileDevicePath(shimPath, efi_linux.ShortFormPathHD)
+	if err != nil {
+		t.Fatalf("unable to create DevicePath for %s: %v", shimPath, err)
+	}
+
 	// Generate fake kernel files
 	kernelNames := []string{
 		"kernel.efi-1",
@@ -259,25 +274,10 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 		"kernel.efi-3",
 		"kernel.efi-5",
 	}
-	// Maps kernelNames idx to expected bootNum
-	expectedBootNumber := []int{4, 3, 0, 2, 1}
-	for _, kernelName := range kernelNames {
-		kernelSourcePath := path.Join(sourceDir, kernelName)
-		kernelTargetPath := path.Join(targetDir, kernelName)
-		afero.WriteFile(memFs, kernelSourcePath, []byte(kernelName), 0644)
-		afero.WriteFile(memFs, kernelTargetPath, []byte(kernelName), 0644)
-	}
-
-	efivars := MockEFIVariables{}
-	bm, err := NewBootManagerForVariables(&efivars)
-	if err != nil {
-		t.Fatalf("unable to create BootManager: %v", err)
-	}
-
 	// Pre-generate a couple of EFI variables to test RegisterNewKernelEFIs
-	// does not duplicate any of them so we create Boot0000 and Boot0001
-	// associated to kernel.efi-1 and kernel.efi-2 to ensure only one of
-	// each exist at the end
+	// does not duplicate any entries. This creates Boot0000 and Boot0001
+	// associated to kernel.efi-1 and kernel.efi-2. Then we ensure only one
+	// of each of them exist at the end
 	preGenNum := 2
 	for i := range preGenNum {
 		kernelName := kernelNames[i]
@@ -286,11 +286,39 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 			t.Fatalf("error creating Kernel type from %s", kernelName)
 		}
 		entry := NewKernelBootEntry("Ubuntu", kernel, "")
-		bm.FindOrCreateEntry(entry, targetDir)
+		_, err = bm.FindOrCreateEntry(entry, targetDir)
+		if err != nil {
+			t.Fatalf("error creating kernel EFI Boot Variable for %s: %v", entry.Label, err)
+		}
 	}
+	// This maps each kernelName to an expected boot number by index
+	// Rationale:
+	// 0, 1: they are generated before NewKernelManager is executed
+	// 2, 4, 3: Version ordered from NewKernelManager
+	// kernel.efi-6 -> (2), kernel.efi-5 -> (3), kernel.efi-3 -> (4)
+	expectedBootNumber := []int{0, 1, 2, 4, 3}
 
-	shimPath := path.Join(targetDir, "shimx64.efi")
-	afero.WriteFile(memFs, shimPath, []byte("file a"), 0644)
+	// Maps kernelNames idx to expected bootNum
+	for _, kernelName := range kernelNames {
+		kernelSourcePath := path.Join(sourceDir, kernelName)
+		kernelTargetPath := path.Join(targetDir, kernelName)
+		afero.WriteFile(memFs, kernelSourcePath, []byte(kernelName), 0644)
+		afero.WriteFile(memFs, kernelTargetPath, []byte(kernelName), 0644)
+	}
+	expectedBootEntryVariables := []BootEntryVariable{}
+	for kNameIdx, bootNumber := range expectedBootNumber {
+		kName := kernelNames[kNameIdx]
+		k, err := NewKernel(kName)
+		if err != nil {
+			t.Fatalf("unable to create kernel for %s: %v", kName, err)
+		}
+		kEntry := NewKernelBootEntry("Ubuntu", k, "")
+		kEntryVar, err := NewBootEntryVariable(kEntry, bootNumber, shimDp)
+		if err != nil {
+			t.Fatalf("unable to create BootEntryVariable for %s: %v", kName, err)
+		}
+		expectedBootEntryVariables = append(expectedBootEntryVariables, kEntryVar)
+	}
 
 	km, err := NewKernelManager(esp, sourceDir, "ubuntu", &bm)
 	if err != nil {
@@ -306,20 +334,10 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 	if numEntries != numKernels {
 		t.Errorf("Expected %d entries, got %d", numKernels, numEntries)
 	}
-	for kernelNameIdx, bootNum := range expectedBootNumber {
-		expectedVersionStr, err := getKernelABI(kernelNames[kernelNameIdx])
-		if err != nil {
-			t.Fatalf("Unable to get kernel ABI from %s: %v", kernelNames[kernelNameIdx], err)
-		}
-		expectedLabel := fmt.Sprintf("Ubuntu with kernel %s", expectedVersionStr)
-		gotDescription := km.bootManager.entries[bootNum].LoadOption.Description
-
-		// The "real" comparison is the BootEntryVariable.Data however, the
-		// only difference between each variable is the Description field
-		// and encoding the loadOption requires much more setup since it
-		// requires a BootManager with efivars to create the DevicePath
-		if gotDescription != expectedLabel {
-			t.Errorf("Expected %s, got %s", expectedLabel, gotDescription)
+	for _, entryVar := range expectedBootEntryVariables {
+		gotEntryVar := km.bootManager.entries[entryVar.BootNumber]
+		if !reflect.DeepEqual(gotEntryVar, entryVar) {
+			t.Errorf("Expected %s, got %s", entryVar.LoadOption.Description, gotEntryVar.LoadOption.Description)
 		}
 	}
 
