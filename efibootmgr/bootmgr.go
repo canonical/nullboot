@@ -19,6 +19,9 @@ import (
 
 const (
 	maxBootEntries = 65535 // Maximum number of boot entries we can hold
+	bootCurrentStr = "BootCurrent"
+	bootNextStr    = "BootNext"
+	bootOrderStr   = "BootOrder"
 )
 const invalidBootNumber = -1
 const defaultBootVariableAttributes = efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess
@@ -89,31 +92,31 @@ func NewBootManagerForVariables(efivars EFIVariables) (BootManager, error) {
 		return BootManager{}, fmt.Errorf("Variables not supported")
 	}
 
-	if bootCurrentBytes, _, err := bm.efivars.GetVariable(efi.GlobalVariable, "BootCurrent"); err != nil {
+	if bootCurrentBytes, _, err := bm.efivars.GetVariable(efi.GlobalVariable, bootCurrentStr); err != nil {
 		switch bm.efivars.(type) {
 		// BootCurrent is a volatile entry that is created upon a
 		// successful boot into some boot entry. Since MockEFIVariables is
 		// not representing a live host, BootCurrent does not need to exist
 		case *MockEFIVariables:
-			log.Printf("Could not read BootCurrent variable, populating with default (%d), error was: %v\n", invalidBootNumber, err)
+			log.Printf("Could not read %s variable, populating with default (%d), error was: %v\n", bootCurrentStr, invalidBootNumber, err)
 			bm.bootCurrent = invalidBootNumber
 		default:
-			return BootManager{}, fmt.Errorf("could not read BootCurrent variable, error was: %w\n", err)
+			return BootManager{}, fmt.Errorf("could not read %s variable, error was: %w\n", bootCurrentStr, err)
 		}
 	} else {
 		bm.bootCurrent = int(binary.LittleEndian.Uint16(bootCurrentBytes[0:2]))
 	}
 
 	// It's possible that BootNext is active from user input or a previous iteration of nullboot
-	if bootNextBytes, _, err := bm.efivars.GetVariable(efi.GlobalVariable, "BootNext"); err != nil {
+	if bootNextBytes, _, err := bm.efivars.GetVariable(efi.GlobalVariable, bootNextStr); err != nil {
 		if len(bootNextBytes) != 0 {
 			bm.bootNext = int(binary.LittleEndian.Uint16(bootNextBytes[0:2]))
 		}
 	}
 
-	bootOrderBytes, bootOrderAttrs, err := bm.efivars.GetVariable(efi.GlobalVariable, "BootOrder")
+	bootOrderBytes, bootOrderAttrs, err := bm.efivars.GetVariable(efi.GlobalVariable, bootOrderStr)
 	if err != nil {
-		log.Println("Could not read BootOrder variable, populating with default, error was:", err)
+		log.Printf("Could not read %s variable, populating with default, error was: %v", bootOrderStr, err)
 		bootOrderBytes = nil
 		bootOrderAttrs = efi.AttributeNonVolatile | efi.AttributeBootserviceAccess | efi.AttributeRuntimeAccess
 	}
@@ -282,7 +285,7 @@ func (bm *BootManager) DeleteEntry(bootNum int) error {
 		log.Printf("the entry associated to BootCurrent (%s) has been deleted\n", toEFIBootEntryFormat(bootNum))
 	} else if bootNum == bm.bootNext {
 		log.Printf("the entry associated to BootNext (%s) has been deleted and un-set\n", toEFIBootEntryFormat(bootNum))
-		if err := DelVariable(bm.efivars, efi.GlobalVariable, "BootNext"); err != nil {
+		if err := DelVariable(bm.efivars, efi.GlobalVariable, bootNextStr); err != nil {
 			return err
 		}
 
@@ -331,7 +334,7 @@ func (bm *BootManager) PrependAndSetBootOrder(head []int) error {
 	}
 
 	// Set the boot order and update our cache
-	if err := bm.efivars.SetVariable(efi.GlobalVariable, "BootOrder", output, bm.bootOrderAttrs); err != nil {
+	if err := bm.efivars.SetVariable(efi.GlobalVariable, bootOrderStr, output, bm.bootOrderAttrs); err != nil {
 		return err
 	}
 
@@ -357,7 +360,7 @@ func (bm *BootManager) SetBootNext(bootNum int) error {
 		return fmt.Errorf("unable to find %s: %w", bootEntryName, err)
 	}
 	bootNumBytes := toEFIBootEntryBytes(bootNum)
-	if err := bm.efivars.SetVariable(efi.GlobalVariable, "BootNext", bootNumBytes, bm.bootOrderAttrs); err != nil {
+	if err := bm.efivars.SetVariable(efi.GlobalVariable, bootNextStr, bootNumBytes, bm.bootOrderAttrs); err != nil {
 		return err
 	}
 
