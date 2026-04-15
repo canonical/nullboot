@@ -5,7 +5,6 @@
 package efibootmgr
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -25,23 +24,21 @@ type EFIVariables interface {
 }
 
 // RealEFIVariables provides the real implementation of efivars
-type RealEFIVariables struct {
-	context context.Context
-}
+type RealEFIVariables struct {}
 
 // ListVariables proxy
 func (vars RealEFIVariables) ListVariables() ([]efi.VariableDescriptor, error) {
-	return efi.ListVariables(vars.context)
+	return efi.ListVariables(efi.DefaultVarContext)
 }
 
 // GetVariable proxy
 func (vars RealEFIVariables) GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
-	return efi.ReadVariable(vars.context, name, guid)
+	return efi.ReadVariable(efi.DefaultVarContext, name, guid)
 }
 
 // SetVariable proxy
 func (vars RealEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
-	return efi.WriteVariable(vars.context, name, guid, attrs, data)
+	return efi.WriteVariable(efi.DefaultVarContext, name, guid, attrs, data)
 }
 
 // NewFileDevicePath proxy
