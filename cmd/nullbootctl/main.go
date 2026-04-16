@@ -9,25 +9,26 @@ import "flag"
 import "log"
 import "os"
 
-var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
-var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
-var outputJSON = flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
-var noBootNext = flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+const Usage = `usage:
+nullbootctl <command> ...
+
+Commands:
+  install
+  set-recovery-key
+`
 
 func usage() {
-    log.Println(
-		"usage: nullbootctl [COMMAND] ...\n" +
-		"\n" +
-		"COMMAND:\n" +
-		"  recovery-key")
+	log.Println(Usage)
 	os.Exit(1)
 }
 
 func main() {
 
     if len(os.Args) > 1 {
-	    if os.Args[1] == "recovery-passphrase" {
-		    main_recovery_passphrase()
+		if os.Args[1] == "set-recovery-key" {
+			os.Args = os.Args[1:] // Strip the first item
+			main_recovery_passphrase()
+			return
 		}
 		if os.Args[1] == "-h" || os.Args[1] == "--help" {
 		    usage()
@@ -38,12 +39,26 @@ func main() {
 }
 
 func main_recovery_passphrase() {
-	efibootmgr.SetupRecoveryKey()
+
+	var devicePath string
+	flag.StringVar(&devicePath, "device", "", "device of the encrypted volume")
+
+	flag.Parse()
+
+	err := efibootmgr.SetupRecoveryKey(devicePath)
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 func main_default() {
 	var assets *efibootmgr.TrustedAssets
 	var err error
+
+	noTPM := flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
+	noEfivars := flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
+	outputJSON := flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
+	noBootNext := flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
 
 	flag.Parse()
 
