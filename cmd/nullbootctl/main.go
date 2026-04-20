@@ -18,20 +18,20 @@ Commands:
 `
 
 func usage() {
-	log.Println(Usage)
+	log.Print(Usage)
 	os.Exit(1)
 }
 
 func main() {
 
-    if len(os.Args) > 1 {
+	if len(os.Args) > 1 {
 		if os.Args[1] == "set-recovery-key" {
 			os.Args = os.Args[1:] // Strip the first item
 			main_recovery_passphrase()
 			return
 		}
 		if os.Args[1] == "-h" || os.Args[1] == "--help" {
-		    usage()
+			usage()
 		}
 	}
 
@@ -40,16 +40,39 @@ func main() {
 
 const (
 	default_cloudimg_encrypted_device   = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
+	default_recovery_name = "recovery-0001"
 )
 
 func main_recovery_passphrase() {
 
 	var devicePath string
-	flag.StringVar(&devicePath, "device", default_cloudimg_encrypted_device, "device of the encrypted volume")
+	var recoveryName string
+	flag.StringVar(&devicePath, "device", default_cloudimg_encrypted_device, "Device of the encrypted volume")
+	flag.StringVar(&recoveryName, "recovery-name", default_recovery_name, "Name of the recovery passphrase")
+	opt_list := flag.Bool("list", false, "List recovery passphrases")
+	opt_delete := flag.Bool("delete", false, "Delete a recovery passphrase")
 
 	flag.Parse()
 
-	err := efibootmgr.SetupRecoveryKey(devicePath)
+	if *opt_list {
+		err := efibootmgr.ListRecoveryPassphrases(devicePath)
+		if err != nil {
+			log.Println("Cannot list recovery key:", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if *opt_delete {
+		err := efibootmgr.DeleteRecoveryPassphrase(devicePath, recoveryName)
+		if err != nil {
+			log.Println("Cannot list recovery key:", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	err := efibootmgr.SetupRecoveryKey(devicePath, recoveryName)
 	if err != nil {
 		log.Println("Cannot set up recovery key:", err)
 		os.Exit(1)
