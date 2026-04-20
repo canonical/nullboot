@@ -39,8 +39,8 @@ func main() {
 }
 
 const (
-	default_cloudimg_encrypted_device   = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
-	default_recovery_name = "recovery-0001"
+	default_cloudimg_encrypted_device = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
+	default_recovery_name             = "recovery-0001"
 )
 
 func main_recovery_passphrase() {

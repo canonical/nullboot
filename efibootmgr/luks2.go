@@ -7,10 +7,10 @@ package efibootmgr
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
+	efi "github.com/canonical/go-efilib"
 	"github.com/snapcore/secboot"
 	_ "github.com/snapcore/secboot/luks2" // This gets the LUKS2 backend initialized
-	efi "github.com/canonical/go-efilib"
+	"log"
 )
 
 func SetupRecoveryKey(devicePath string, recoveryName string) error {
