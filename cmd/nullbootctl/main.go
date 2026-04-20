@@ -38,15 +38,20 @@ func main() {
 	main_default()
 }
 
+const (
+	default_cloudimg_encrypted_device   = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
+)
+
 func main_recovery_passphrase() {
 
 	var devicePath string
-	flag.StringVar(&devicePath, "device", "", "device of the encrypted volume")
+	flag.StringVar(&devicePath, "device", default_cloudimg_encrypted_device, "device of the encrypted volume")
 
 	flag.Parse()
 
 	err := efibootmgr.SetupRecoveryKey(devicePath)
 	if err != nil {
+		log.Println("Cannot set up recovery key:", err)
 		os.Exit(1)
 	}
 }

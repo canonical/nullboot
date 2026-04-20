@@ -6,12 +6,12 @@ package efibootmgr
 
 import (
 	"crypto/rand"
-    "log"
-    secboot "github.com/snapcore/secboot"
+	"fmt"
+	"log"
+	"encoding/hex"
+	"github.com/snapcore/secboot"
+	efi "github.com/canonical/go-efilib"
 )
-
-import "encoding/hex"
-import "fmt"
 
 func SetupRecoveryKey(devicePath string) error {
 	fmt.Printf("SetupRecoveryKey: devicePath=%s\n", devicePath)
@@ -26,30 +26,33 @@ func SetupRecoveryKey(devicePath string) error {
 		log.Printf("error in ListLUKS2ContainerUnlockKeyNames")
 	}
 
-	prefix := "" // should default to "ubuntu-fde"
-	//devicePath := "/dev/sda99"
-	keyslotName := "???" // anything, stored in the token
-	diskUnlockKey, err := secboot.GetDiskUnlockKeyFromKernel(prefix, devicePath, false) // deprecated
-	// newer:
-	container := secboot.FindStorageContainer(...)
+	keyslotName := "a recovery key" // anything, stored in the token
+	container, err := secboot.FindStorageContainer(efi.DefaultVarContext, devicePath)
+	if err != nil {
+		log.Printf("Cannot FindStorageContainer")
+		return err
+	}
 	purpose := secboot.KeyringKeyPurposeUnlock
-	secboot.GetKeyFromKernel(ctx, container, purpose, prefix)
-	if err == nil {
+	// prefix "" defaults to "ubuntu-fde"
+	diskUnlockKey, err := secboot.GetKeyFromKernel(efi.DefaultVarContext, container, purpose, "")
+	if err != nil {
 	    log.Printf("Cannot get disk unlock key from kernel")
 		return err
 	}
-	keyHex := make([]byte, hex.EncodedLen(len(diskUnlockKey)))
-	hex.Encode(keyHex, diskUnlockKey[:])
-	fmt.Printf("key: %s\n", keyHex)
+	keyHex := make([]byte, hex.EncodedLen(len(diskUnlockKey))) // TODO remove
+	hex.Encode(keyHex, diskUnlockKey[:]) // TODO remove
+	log.Printf("key: %s\n", keyHex)      // TODO remove
 
     recoveryKey := secboot.RecoveryKey{} // generate random from crypto rand package
 	rand.Read(recoveryKey[:])
 	err = secboot.AddLUKS2ContainerRecoveryKey(devicePath, keyslotName, diskUnlockKey, recoveryKey)
     // soon to be replaced. (package secboot.luks2)
     if err != nil {
-        log.Printf("error xxx")
+		log.Printf("Cannot AddLUKS2ContainerRecoveryKey")
+		return err
     }
-	// print recoveryKey
+
+	fmt.Printf(recoveryKey.String())
 
 	return nil
 }
