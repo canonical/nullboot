@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	//"errors"
-	"github.com/canonical/go-efilib"
+	efi "github.com/canonical/go-efilib"
 	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
@@ -20,30 +20,30 @@ type EFIVariables interface {
 	ListVariables() ([]efi.VariableDescriptor, error)
 	GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error)
 	SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error
-	NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error)
+	NewFileDevicePath(filepath string, mode efi_linux.FilePathToDevicePathMode) (efi.DevicePath, error)
 }
 
 // RealEFIVariables provides the real implementation of efivars
 type RealEFIVariables struct{}
 
 // ListVariables proxy
-func (RealEFIVariables) ListVariables() ([]efi.VariableDescriptor, error) {
-	return efi.ListVariables()
+func (vars RealEFIVariables) ListVariables() ([]efi.VariableDescriptor, error) {
+	return efi.ListVariables(efi.DefaultVarContext)
 }
 
 // GetVariable proxy
-func (RealEFIVariables) GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
-	return efi.ReadVariable(name, guid)
+func (vars RealEFIVariables) GetVariable(guid efi.GUID, name string) (data []byte, attrs efi.VariableAttributes, err error) {
+	return efi.ReadVariable(efi.DefaultVarContext, name, guid)
 }
 
 // SetVariable proxy
-func (RealEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
-	return efi.WriteVariable(name, guid, attrs, data)
+func (vars RealEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs efi.VariableAttributes) error {
+	return efi.WriteVariable(efi.DefaultVarContext, name, guid, attrs, data)
 }
 
 // NewFileDevicePath proxy
-func (RealEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
-	return efi_linux.NewFileDevicePath(filepath, mode)
+func (vars RealEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FilePathToDevicePathMode) (efi.DevicePath, error) {
+	return efi_linux.FilePathToDevicePath(filepath, mode)
 }
 
 type mockEFIVariable struct {
@@ -87,7 +87,7 @@ func (m *MockEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, 
 }
 
 // NewFileDevicePath implements EFIVariables
-func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
+func (m MockEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FilePathToDevicePathMode) (efi.DevicePath, error) {
 	file, err := appFs.Open(filepath)
 	if err != nil {
 		return nil, err
