@@ -4,19 +4,108 @@
 
 package main
 
-import "github.com/canonical/nullboot/efibootmgr"
-import "flag"
-import "log"
-import "os"
+import (
+	"flag"
+	"github.com/canonical/nullboot/efibootmgr"
+	"github.com/canonical/nullboot/luks2"
+	"log"
+	"os"
+)
 
-var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
-var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
-var outputJSON = flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
-var noBootNext = flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+const Usage = `usage:
+
+1. nullbootctl
+2. nullbootctl -no-tpm -output-json FILE
+3. nullbootctl -no-boot-next
+4. nullbootctl recovery-key [OPTIONS]
+
+Commands:
+
+  recovery-key
+	  Manage FDE recovery keys (LUKS passphrases).
+	  Options:
+		--create [--device DEVICE] [--name NAME]
+		--delete [--device DEVICE] [--name NAME]
+		--list   [--device DEVICE]
+`
+
+func usage() {
+	log.Print(Usage)
+	os.Exit(1)
+}
 
 func main() {
+
+	if len(os.Args) > 1 {
+		if os.Args[1] == "recovery-key" {
+			os.Args = os.Args[1:] // Strip the first item
+			cmd_recovery_key()
+			return
+		}
+		if os.Args[1] == "-h" || os.Args[1] == "--help" {
+			usage()
+		}
+	}
+
+	cmd_default()
+}
+
+const (
+	default_cloudimg_encrypted_device = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
+	default_recovery_name             = "recovery-0001"
+)
+
+func cmd_recovery_key() {
+
+	var devicePath string
+	var recoveryName string
+	doCreate := flag.Bool("create", false, "Create and set a recovery key")
+	doList := flag.Bool("list", false, "List recovery keys")
+	doDelete := flag.Bool("delete", false, "Delete a recovery key")
+	flag.StringVar(&devicePath, "device", default_cloudimg_encrypted_device, "Device of the encrypted volume")
+	flag.StringVar(&recoveryName, "name", default_recovery_name, "Name of the recovery key")
+
+	flag.Parse()
+
+	if *doCreate && *doList {
+		log.Println("Options --create and --list cannot be used together")
+		os.Exit(1)
+	}
+	if *doCreate && *doDelete {
+		log.Println("Options --create and --delete cannot be used together")
+		os.Exit(1)
+	}
+	if *doDelete && *doList {
+		log.Println("Options --delete and --list cannot be used together")
+		os.Exit(1)
+	}
+
+	var err error
+	if *doList {
+		err = luks2.ListRecoveryKeys(devicePath)
+	} else if *doDelete {
+		err = luks2.DeleteRecoveryKey(devicePath, recoveryName)
+	} else if *doCreate {
+		err = luks2.CreateRecoveryKey(devicePath, recoveryName)
+	} else {
+		log.Println("Please select at least one action: --create, --list, --delete")
+		os.Exit(1)
+	}
+
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func cmd_default() {
 	var assets *efibootmgr.TrustedAssets
 	var err error
+
+	noTPM := flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
+	noEfivars := flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
+	outputJSON := flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
+	noBootNext := flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+
 	flag.Parse()
 
 	const (

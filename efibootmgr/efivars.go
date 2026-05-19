@@ -24,7 +24,7 @@ type EFIVariables interface {
 }
 
 // RealEFIVariables provides the real implementation of efivars
-type RealEFIVariables struct {}
+type RealEFIVariables struct{}
 
 // ListVariables proxy
 func (vars RealEFIVariables) ListVariables() ([]efi.VariableDescriptor, error) {
