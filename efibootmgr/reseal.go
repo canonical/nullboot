@@ -30,7 +30,7 @@ import (
 const (
 	keyFilePath   = "device/fde/cloudimg-rootfs.sealed-key"
 	keyringPrefix = "ubuntu-fde"
-	rootfsLabel   = "cloudimg-rootfs-enc"
+	RootfsLabel   = "cloudimg-rootfs-enc"
 )
 
 var (
@@ -111,7 +111,7 @@ func resolveLink(path string) (string, error) {
 }
 
 func getPrimaryKeyFromKernel() (secboot.PrimaryKey, error) {
-	devPath, err := resolveLink(filepath.Join("/dev/disk/by-label", rootfsLabel))
+	devPath, err := resolveLink(filepath.Join("/dev/disk/by-label", RootfsLabel))
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve devive symlink: %w", err)
 	}

@@ -4,17 +4,127 @@
 
 package main
 
-import "golang.org/x/sys/unix"
-import "github.com/canonical/nullboot/efibootmgr"
-import "flag"
-import "log"
-import "os"
-import "syscall"
+import (
+	"flag"
+	"fmt"
+	"github.com/canonical/nullboot/efibootmgr"
+	"github.com/canonical/nullboot/luks2"
+	"golang.org/x/sys/unix"
+	"log"
+	"os"
+	"syscall"
+)
 
-var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
-var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
-var outputJSON = flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
-var noBootNext = flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+const Usage = `usage:
+
+1. nullbootctl [install] <options>
+2. nullbootctl recovery-key <options>
+
+Commands:
+  install         Install boot artifacts
+  recovery-key    Manage disk encryption recovery keys
+
+See 'nullbootctl <command> -h' for more help.
+`
+
+const UsageRecoveryKey = `Usage:
+nullbootctl recovery-key --create [--device <device>] [--name <name>]
+                         --delete [--device <device>] [--name <name>]
+                         --list   [--device <device>]
+                         --verify [--device <device>]
+
+Options:
+  <device>   LUKS2 device
+  <name>     Name of the recovery key
+`
+
+func main() {
+
+	if len(os.Args) > 1 {
+		if os.Args[1] == "recovery-key" {
+			os.Args = os.Args[1:] // Strip the first item
+			os.Args[0] = "nullbootctl recovery-key"
+			cmd_recovery_key()
+			return
+		}
+		if os.Args[1] == "-h" || os.Args[1] == "--help" {
+			fmt.Print(Usage)
+			return
+		}
+		if os.Args[1] == "install" {
+			os.Args = os.Args[1:] // Strip this command (it is the default)
+		}
+		if len(os.Args[1]) == 0 || os.Args[1][0] != '-' {
+			fmt.Fprintf(os.Stderr, "nullbootctl: '%v' is not a valid command. See 'nullbootctl --help'.\n", os.Args[1])
+			os.Exit(1)
+		}
+	}
+
+	// Default "install" command
+	os.Args[0] = "nullbootctl install"
+	cmd_default()
+}
+
+const (
+	default_cloudimg_encrypted_device = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
+	default_recovery_name             = "recovery-0001"
+)
+
+func usageRecoveryKey() {
+    fmt.Print(UsageRecoveryKey)
+}
+
+func cmd_recovery_key() {
+
+	var devicePath string
+	var recoveryName string
+	doCreate := flag.Bool("create", false, "Create and set a recovery key")
+	doList := flag.Bool("list", false, "List recovery keys")
+	doDelete := flag.Bool("delete", false, "Delete a recovery key")
+	doVerify := flag.Bool("verify", false, "Verify a recovery key")
+	flag.StringVar(&devicePath, "device", default_cloudimg_encrypted_device, "Device of the encrypted volume")
+	flag.StringVar(&recoveryName, "name", default_recovery_name, "Name of the recovery key")
+	flag.Usage = usageRecoveryKey
+	flag.Parse()
+
+	mutuallyExclusiveOptsCount := 0
+	if *doCreate {
+		mutuallyExclusiveOptsCount++
+	}
+	if *doDelete {
+		mutuallyExclusiveOptsCount++
+	}
+	if *doList {
+		mutuallyExclusiveOptsCount++
+	}
+	if *doVerify {
+		mutuallyExclusiveOptsCount++
+	}
+
+	if mutuallyExclusiveOptsCount > 1 {
+		fmt.Fprintf(os.Stderr, "Options cannot be used together: --create, --list, --delete, --verify\n")
+		os.Exit(1)
+	}
+
+	var err error
+	if *doList {
+		err = luks2.ListRecoveryKeys(devicePath)
+	} else if *doDelete {
+		err = luks2.DeleteRecoveryKey(devicePath, recoveryName)
+	} else if *doCreate {
+		err = luks2.CreateRecoveryKey(devicePath, recoveryName)
+	} else if *doVerify {
+		err = luks2.VerifyRecoveryKey(devicePath)
+	} else {
+		fmt.Fprintf(os.Stderr, "Please select at least one action: --create, --list, --delete, --verify\n")
+		os.Exit(1)
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		os.Exit(1)
+	}
+}
 
 func syncDirectory(dir string) error {
 	dirFd, err := syscall.Open(dir, syscall.O_RDONLY|syscall.O_DIRECTORY, 0755)
@@ -25,9 +135,15 @@ func syncDirectory(dir string) error {
 	return err
 }
 
-func main() {
+func cmd_default() {
 	var assets *efibootmgr.TrustedAssets
 	var err error
+
+	noTPM := flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
+	noEfivars := flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
+	outputJSON := flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
+	noBootNext := flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+
 	flag.Parse()
 
 	const (
