@@ -9,7 +9,7 @@ package efibootmgr
 import (
 	"errors"
 
-	"github.com/canonical/go-efilib"
+	efi "github.com/canonical/go-efilib"
 	efi_linux "github.com/canonical/go-efilib/linux"
 )
 
@@ -27,7 +27,7 @@ func (NoEFIVariables) SetVariable(guid efi.GUID, name string, data []byte, attrs
 	return efi.ErrVarsUnavailable
 }
 
-func (NoEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FileDevicePathMode) (efi.DevicePath, error) {
+func (NoEFIVariables) NewFileDevicePath(filepath string, mode efi_linux.FilePathToDevicePathMode) (efi.DevicePath, error) {
 	return nil, errors.New("Cannot access")
 }
 

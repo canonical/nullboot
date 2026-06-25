@@ -4,14 +4,26 @@
 
 package main
 
+import "golang.org/x/sys/unix"
 import "github.com/canonical/nullboot/efibootmgr"
 import "flag"
 import "log"
 import "os"
+import "syscall"
 
 var noTPM = flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
-var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables")
-var outputJSON = flag.String("output-json", "", "JSON file to write (also disables writing real EFI variables)")
+var noEfivars = flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
+var outputJSON = flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
+var noBootNext = flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
+
+func syncDirectory(dir string) error {
+	dirFd, err := syscall.Open(dir, syscall.O_RDONLY|syscall.O_DIRECTORY, 0755)
+	if err != nil {
+		return err
+	}
+	_, _, err = unix.Syscall(unix.SYS_SYNCFS, uintptr(dirFd), 0, 0)
+	return err
+}
 
 func main() {
 	var assets *efibootmgr.TrustedAssets
@@ -25,7 +37,7 @@ func main() {
 		vendor          = "ubuntu"
 	)
 
-	// FIXME: Let's actually add some arg parsing and stuff?
+	usingRealEFIVars := *outputJSON == "" && !*noEfivars
 	if !*noTPM {
 		assets, err = efibootmgr.ReadTrustedAssets()
 		if err != nil {
@@ -90,24 +102,70 @@ func main() {
 	if updatedShim {
 		log.Print("Updated shim")
 	}
-	// Install new kernels and commit to bootloader config. This
-	// way
+
+	// Install new kernels, and sync the file system to make sure the kernels are installed,
+	// then register them in the boot order.
+	// APT manages a list of kernels for us, here we add the new ones that were installed;
+	// kernel packages that were removed but are still in the ESP will be removed in the next
+	// block.
 	if err = km.InstallKernels(); err != nil {
 		log.Print(err)
 		os.Exit(1)
 	}
-	if err = km.CommitToBootLoader(); err != nil {
+	if err = syncDirectory(esp); err != nil {
+		log.Print(err)
+		err = nil // not a hard failure
+	}
+
+	if err = km.RegisterNewKernelEFIs(); err != nil {
 		log.Print(err)
 		os.Exit(1)
 	}
-	// Cleanup old entries
-	if err = km.RemoveObsoleteKernels(); err != nil {
-		log.Print(err)
-		os.Exit(1)
+
+	// Determine if the fallback mechanism is required
+	isCurrentBootLatest := true
+	if usingRealEFIVars {
+		// Only set fallback if the latest kernel is not booted
+		isCurrentBootLatest, err = km.IsCurrentBootLatest()
+		if err != nil {
+			log.Printf("Unable to determine if the latest kernel is BootCurrent: %v", err)
+			os.Exit(1)
+		}
+		log.Println("BootCurrent is not the latest installed kernel entry")
 	}
-	if err = km.CommitToBootLoader(); err != nil {
-		log.Print(err)
-		os.Exit(1)
+
+	// If current boot is not latest, set latest to BootNext so it can
+	// attempt to boot on next reboot
+	//
+	// Else, the current kernel booted successfully and the EFI variables
+	// can be updated accordingly; notably, the BootCurrent will become
+	// BootOrder[0]
+	if !isCurrentBootLatest {
+		if !*noBootNext {
+			if err := km.SetLatestKernelToBootNext(); err != nil {
+				log.Printf("Unable to set kernel fallback for new kernel: %v", err)
+				os.Exit(1)
+			}
+			log.Println("Set kernel fallback mechanism for newly installed kernel")
+		}
+	} else {
+		if err = km.CommitToBootLoader(); err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+		// Cleanup old entries
+		if err = km.RemoveObsoleteKernels(); err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+		// This second call is intended to cleanup Boot variables that
+		// become obsolete after the first call. It is not explicitly
+		// tested, but I am not convinced that it is necessary. Regardless,
+		// I do not want to break anything since I am not 100% sure of this
+		if err = km.CommitToBootLoader(); err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
 	}
 
 	if assets != nil {
@@ -123,7 +181,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
 	if jsonEfivars, ok := efivars.(*efibootmgr.MockEFIVariables); ok {
 		json, err := jsonEfivars.JSON()
 		if err != nil {

@@ -9,14 +9,15 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - 1.22.x
+          - 1.24.x
         os:
           - ubuntu-22.04
           - ubuntu-24.04
+          - ubuntu-26.04
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Install Go
       uses: actions/setup-go@v5
