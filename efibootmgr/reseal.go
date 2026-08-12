@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -114,6 +115,16 @@ func getPrimaryKeyFromKernel() (secboot.PrimaryKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve devive symlink: %w", err)
 	}
+
+	// The keyring is stored in OS thread (task_struct in linux kernel), not the process
+	// Link a keyring into it only takes effect for whichever thread performs the link
+	// and Go is free to reschedule this goroutine onto a different OS thread between
+	// syscalls.
+	// Pin the goroutine to its current thread, so both KEYCTL_LINK and the key read are
+	// able to access the same keyring; otherwise the read intermittently fails with
+	// permission denied, because it's on a thread whose keyring never got the link.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
 	// By default, system services get their own session keyring that doesn't have
 	// the user keyring linked to it. This means that attempting to read a key from
