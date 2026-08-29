@@ -1,6 +1,6 @@
 module github.com/canonical/nullboot
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/canonical/go-efilib v1.7.1-0.20260310185303-7166aa858b24
@@ -10,7 +10,7 @@ require (
 	github.com/snapcore/secboot v0.0.0-20260410084611-3f8b98c2db70
 	github.com/spf13/afero v1.15.0
 	golang.org/x/sys v0.38.0
-	golang.org/x/text v0.34.0
+	golang.org/x/text v0.38.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
 
