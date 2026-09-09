@@ -74,7 +74,16 @@ func main() {
 		}
 	}
 
-	km, err := efibootmgr.NewKernelManager(esp, kernelSourceDir, vendor, maybeBm)
+	config, err := efibootmgr.ReadConfig(efibootmgr.DefaultConfigPath)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	if len(config.KernelPriority) > 0 {
+		log.Println("using kernel priorities:", config.KernelPriority)
+	}
+
+	km, err := efibootmgr.NewKernelManager(esp, kernelSourceDir, vendor, maybeBm, config)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
