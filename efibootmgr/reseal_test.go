@@ -285,7 +285,7 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 
 	bm, err := NewBootManagerForVariables(&mockvars)
 	c.Assert(err, check.IsNil)
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm, nil)
 	c.Assert(err, check.IsNil)
 
 	c.Check(ResealKey(assets, km, "/boot/efi", "/usr/lib/nullboot/shim", "ubuntu"), check.IsNil)
@@ -668,7 +668,7 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 
 	bm, err := NewBootManagerForVariables(&mockvars)
 	c.Assert(err, check.IsNil)
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm, nil)
 	c.Assert(err, check.IsNil)
 
 	return ResealKey(assets, km, "/boot/efi", "/usr/lib/nullboot/shim", "ubuntu")

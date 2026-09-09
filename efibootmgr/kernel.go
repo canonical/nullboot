@@ -17,8 +17,30 @@ import (
 
 const kernelPrefix = "kernel.efi-"
 
+// WeightedVersion orders versions by priority first, then by
+// version. A zero priority sorts like a plain version.Version.
+type WeightedVersion struct {
+	version.Version
+	weight int
+}
+
+// GreaterThan returns true if v sorts before v2: either a higher
+// priority, or the same priority with a greater version.
+func (v WeightedVersion) GreaterThan(v2 WeightedVersion) bool {
+	if v.weight != v2.weight {
+		return v.weight > v2.weight
+	}
+	return v.Version.GreaterThan(v2.Version)
+}
+
+// Equal returns true if the versions are equal; the weight derives
+// from the version string, so equal versions have equal weights.
+func (v WeightedVersion) Equal(v2 WeightedVersion) bool {
+	return v.Version.Equal(v2.Version)
+}
+
 type Kernel struct {
-	Version  version.Version
+	Version  WeightedVersion
 	FilePath string
 }
 
@@ -30,14 +52,16 @@ func (k *Kernel) Equals(other Kernel) bool {
 	return k.Version.Equal(other.Version) && k.GetKernelName() == other.GetKernelName()
 }
 
-func NewKernel(kernelPath string) (Kernel, error) {
+// NewKernel creates a Kernel from its path. The kernel's weight is
+// computed from config, which may be nil.
+func NewKernel(kernelPath string, config *Configuration) (Kernel, error) {
 	kernelName := path.Base(kernelPath)
 	if versionStr, err := getKernelABI(kernelName); err == nil {
 		v, err := version.NewVersion(versionStr)
 		if err != nil {
 			return Kernel{}, fmt.Errorf("could not parse kernel version of %s: %w", kernelName, err)
 		}
-		return Kernel{v, kernelPath}, nil
+		return Kernel{WeightedVersion{Version: v, weight: config.weight(versionStr)}, kernelPath}, nil
 	}
 	return Kernel{}, fmt.Errorf("unrecognized kernel naming format: %s", kernelName)
 }
@@ -58,17 +82,20 @@ type KernelManager struct {
 	targetKernels []Kernel      // kernels in targetDir
 	kernelEntries []KernelEntry // boot entries filled by InstallKernels
 	kernelOptions string        // options to pass to kernel
-	bootManager   *BootManager  // The EFI boot manager
+	bootManager   *BootManager   // The EFI boot manager
+	config        *Configuration // nullboot configuration
 }
 
-// NewKernelManager returns a new kernel manager managing kernels in the host system
-func NewKernelManager(esp, sourceDir, vendor string, bootManager *BootManager) (*KernelManager, error) {
+// NewKernelManager returns a new kernel manager managing kernels in the
+// host system. config may be nil.
+func NewKernelManager(esp, sourceDir, vendor string, bootManager *BootManager, config *Configuration) (*KernelManager, error) {
 	var km KernelManager
 	var err error
 
 	km.sourceDir = sourceDir
 	km.targetDir = path.Join(esp, "EFI", vendor)
 	km.bootManager = bootManager
+	km.config = config
 
 	if file, err := appFs.Open("/etc/kernel/cmdline"); err == nil {
 		defer file.Close()
@@ -103,13 +130,13 @@ func (km *KernelManager) readKernels(dir string) ([]Kernel, error) {
 		if !hasKernelPrefix(e.Name()) {
 			continue
 		}
-		kernel, err := NewKernel(path.Join(dir, e.Name()))
+		kernel, err := NewKernel(path.Join(dir, e.Name()), km.config)
 		if err != nil {
 			return []Kernel{}, err
 		}
 		kernels = append(kernels, kernel)
 	}
-	// Sort descending
+	// Sort descending by flavour preference group, then by version
 	sort.Slice(kernels, func(i, j int) bool {
 		a := kernels[i].Version
 		b := kernels[j].Version

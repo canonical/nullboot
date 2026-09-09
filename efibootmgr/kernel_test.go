@@ -45,7 +45,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 	kernelNames := []string{"kernel.efi-1.0-12-generic", "kernel.efi-1.0-1-generic"}
 	sourceKernels := []Kernel{}
 	for _, kernelName := range kernelNames {
-		k, err := NewKernel(path.Join(sourceDir, kernelName))
+		k, err := NewKernel(path.Join(sourceDir, kernelName), nil)
 		if err != nil {
 			t.Fatalf("Unable to create Kernel %s: %v", kernelName, err)
 		}
@@ -68,7 +68,7 @@ func TestKernelManagerNewAndInstallKernels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	km, err := NewKernelManager("/boot/efi", sourceDir, "ubuntu", &bm)
+	km, err := NewKernelManager("/boot/efi", sourceDir, "ubuntu", &bm, nil)
 	if err != nil {
 		t.Fatalf("Could not create kernel manager: %v", err)
 	}
@@ -155,7 +155,10 @@ func TestKernelManager_noCmdLine(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm, nil)
+	if err != nil {
+		t.Fatalf("Could not create kernel manager: %v", err)
+	}
 	if err := km.InstallKernels(); err != nil {
 		t.Errorf("Could not install kernels: %v", err)
 	}
@@ -221,7 +224,7 @@ func TestKernelManagerRemoveObsoleteKernels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create boot manager: %v", err)
 	}
-	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm)
+	km, err := NewKernelManager("/boot/efi", "/usr/lib/linux", "ubuntu", &bm, nil)
 	if err != nil {
 		t.Fatalf("Could not create kernel manager: %v", err)
 	}
@@ -281,7 +284,7 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 	preGenNum := 2
 	for i := range preGenNum {
 		kernelName := kernelNames[i]
-		kernel, err := NewKernel(kernelName)
+		kernel, err := NewKernel(kernelName, nil)
 		if err != nil {
 			t.Fatalf("error creating Kernel type from %s", kernelName)
 		}
@@ -308,7 +311,7 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 	expectedBootEntryVariables := []BootEntryVariable{}
 	for kNameIdx, bootNumber := range expectedBootNumber {
 		kName := kernelNames[kNameIdx]
-		k, err := NewKernel(kName)
+		k, err := NewKernel(kName, nil)
 		if err != nil {
 			t.Fatalf("unable to create kernel for %s: %v", kName, err)
 		}
@@ -320,7 +323,7 @@ func TestKernelManagerRegisterNewKernelEFIs(t *testing.T) {
 		expectedBootEntryVariables = append(expectedBootEntryVariables, kEntryVar)
 	}
 
-	km, err := NewKernelManager(esp, sourceDir, "ubuntu", &bm)
+	km, err := NewKernelManager(esp, sourceDir, "ubuntu", &bm, nil)
 	if err != nil {
 		t.Fatalf("unable to create KernelManager: %v", err)
 	}
@@ -384,7 +387,7 @@ func TestKernelManagerSetLatestKernelToBootNext(t *testing.T) {
 		afero.WriteFile(memFs, kernelTargetPath, []byte(kernelName), 0644)
 
 		// NOTE: create entries this way in the test so boot number can be controlled
-		kernel, err := NewKernel(kernelName)
+		kernel, err := NewKernel(kernelName, nil)
 		if err != nil {
 			t.Fatalf("error creating Kernel type from %s", kernelName)
 		}
@@ -397,9 +400,14 @@ func TestKernelManagerSetLatestKernelToBootNext(t *testing.T) {
 	}
 
 	// This reads the kernel files in version order
-	km, err := NewKernelManager("/boot/efi", sourceDir, "ubuntu", &bm)
+	km, err := NewKernelManager("/boot/efi", sourceDir, "ubuntu", &bm, nil)
+	if err != nil {
+		t.Fatalf("Could not create kernel manager: %v", err)
+	}
 	// Populate km.bootEntries (also in version order)
-	km.InstallKernels()
+	if err := km.InstallKernels(); err != nil {
+		t.Fatalf("Could not install kernels: %v", err)
+	}
 
 	if err := km.SetLatestKernelToBootNext(); err != nil {
 		t.Fatalf("unexpected error setting latest kernel to BootNext: %v", err)
@@ -481,7 +489,7 @@ func TestKernelManagerIsCurrentBootLatest(t *testing.T) {
 		var latestKernelEntry *KernelEntry
 		for bootNum, version := range tt.kernelVersionMap {
 			kernelName := fmt.Sprintf("kernel.efi-%s", version)
-			kernel, err := NewKernel(kernelName)
+			kernel, err := NewKernel(kernelName, nil)
 			if err != nil {
 				t.Fatalf("error creating Kernel type from %s", kernelName)
 			}
@@ -523,6 +531,112 @@ func TestKernelManagerIsCurrentBootLatest(t *testing.T) {
 	}
 }
 
+func TestKernelManagerKernelPriority(t *testing.T) {
+	appArchitecture = "x64"
+	memFs := afero.NewMemMapFs()
+	appFs = MapFS{memFs}
+
+	sourceDir := "/usr/lib/linux"
+	kernelNames := []string{
+		"kernel.efi-6.8.0-52-generic",
+		"kernel.efi-6.8.0-51-fips",
+		"kernel.efi-6.8.0-1003-azure-fde",
+		"kernel.efi-6.8.0-52-fips",
+	}
+	for _, kernelName := range kernelNames {
+		if err := afero.WriteFile(memFs, path.Join(sourceDir, kernelName), []byte(kernelName), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(memFs, "/etc/kernel/cmdline", []byte("root=magic"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(memFs, "/etc/nullboot.conf", []byte(`kernel-priority:
+  fips: 1000
+  azure-fde: 100
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := ReadConfig("/etc/nullboot.conf")
+	if err != nil {
+		t.Fatalf("unexpected error reading configuration: %v", err)
+	}
+
+	km, err := NewKernelManager("/boot/efi", sourceDir, "ubuntu", nil, config)
+	if err != nil {
+		t.Fatalf("Could not create kernel manager: %v", err)
+	}
+
+	// Priorities sort before versions: fips (1000) kernels first by
+	// version, then azure-fde (100), then generic (unlisted, 0).
+	wantOrder := []string{
+		"kernel.efi-6.8.0-52-fips",
+		"kernel.efi-6.8.0-51-fips",
+		"kernel.efi-6.8.0-1003-azure-fde",
+		"kernel.efi-6.8.0-52-generic",
+	}
+	if len(km.sourceKernels) != len(wantOrder) {
+		t.Fatalf("expected %d kernels, got %d", len(wantOrder), len(km.sourceKernels))
+	}
+	for i, want := range wantOrder {
+		if got := km.sourceKernels[i].GetKernelName(); got != want {
+			t.Errorf("kernel %d: expected %s, got %s", i, want, got)
+		}
+	}
+
+	if err := km.InstallKernels(); err != nil {
+		t.Errorf("Could not install kernels: %v", err)
+	}
+	latest, err := km.GetLatestKernelEntry()
+	if err != nil {
+		t.Fatalf("Could not get latest kernel entry: %v", err)
+	}
+	// The latest kernel is the newest one of the highest-priority
+	// flavour, even though a newer generic kernel exists.
+	if got := latest.kernel.GetKernelName(); got != "kernel.efi-6.8.0-52-fips" {
+		t.Errorf("expected latest kernel to be kernel.efi-6.8.0-52-fips, got %s", got)
+	}
+}
+
+func TestKernelManagerNoConfigurationVersionOrder(t *testing.T) {
+	appArchitecture = "x64"
+	memFs := afero.NewMemMapFs()
+	appFs = MapFS{memFs}
+
+	sourceDir := "/usr/lib/linux"
+	kernelNames := []string{
+		"kernel.efi-6.8.0-51-fips",
+		"kernel.efi-6.8.0-52-generic",
+	}
+	for _, kernelName := range kernelNames {
+		if err := afero.WriteFile(memFs, path.Join(sourceDir, kernelName), []byte(kernelName), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := afero.WriteFile(memFs, "/boot/efi/EFI/ubuntu/<dummy>", []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// No configuration: sorting is purely by version
+	km, err := NewKernelManager("/boot/efi", sourceDir, "ubuntu", nil, nil)
+	if err != nil {
+		t.Fatalf("Could not create kernel manager: %v", err)
+	}
+	wantOrder := []string{
+		"kernel.efi-6.8.0-52-generic",
+		"kernel.efi-6.8.0-51-fips",
+	}
+	for i, want := range wantOrder {
+		if got := km.sourceKernels[i].GetKernelName(); got != want {
+			t.Errorf("kernel %d: expected %s, got %s", i, want, got)
+		}
+	}
+}
+
 func TestKernelManagerGetLatestKernelEntry(t *testing.T) {
 	expectedLatestKPath := "kernel.efi-100"
 	kernelPaths := []string{"kernel.efi-1", "kernel.efi-20", expectedLatestKPath, "kernel.efi-2"}
@@ -532,7 +646,7 @@ func TestKernelManagerGetLatestKernelEntry(t *testing.T) {
 		return NewKernelBootEntry("Ubuntu", k, "")
 	}
 	for _, kPath := range kernelPaths {
-		k, err := NewKernel(kPath)
+		k, err := NewKernel(kPath, nil)
 		if err != nil {
 			t.Fatalf("Failed to create kernel %s: %v", kPath, err)
 		}
@@ -541,7 +655,7 @@ func TestKernelManagerGetLatestKernelEntry(t *testing.T) {
 		kernelEntries = append(kernelEntries, kEntry)
 	}
 
-	expectedLatestK, err := NewKernel(expectedLatestKPath)
+	expectedLatestK, err := NewKernel(expectedLatestKPath, nil)
 	expectedLatestEntry := genTestKernelEntry(expectedLatestK)
 	expectedLatestKEntry := KernelEntry{expectedLatestK, expectedLatestEntry}
 
