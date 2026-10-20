@@ -39,12 +39,11 @@ Options:
 `
 
 func main() {
-
 	if len(os.Args) > 1 {
 		if os.Args[1] == "recovery-key" {
 			os.Args = os.Args[1:] // Strip the first item
 			os.Args[0] = "nullbootctl recovery-key"
-			cmd_recovery_key()
+			cmdRecoveryKey()
 			return
 		}
 		if os.Args[1] == "-h" || os.Args[1] == "--help" {
@@ -62,7 +61,7 @@ func main() {
 
 	// Default "install" command
 	os.Args[0] = "nullbootctl install"
-	cmd_default()
+	cmdInstall()
 }
 
 const (
@@ -71,11 +70,10 @@ const (
 )
 
 func usageRecoveryKey() {
-    fmt.Print(UsageRecoveryKey)
+	fmt.Print(UsageRecoveryKey)
 }
 
-func cmd_recovery_key() {
-
+func cmdRecoveryKey() {
 	var devicePath string
 	var recoveryName string
 	doCreate := flag.Bool("create", false, "Create and set a recovery key")
@@ -135,7 +133,7 @@ func syncDirectory(dir string) error {
 	return err
 }
 
-func cmd_default() {
+func cmdInstall() {
 	var assets *efibootmgr.TrustedAssets
 	var err error
 
