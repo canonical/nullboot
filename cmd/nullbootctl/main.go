@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"github.com/canonical/nullboot/efibootmgr"
 	"github.com/canonical/nullboot/luks2"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"log"
 	"os"
 	"syscall"
 )

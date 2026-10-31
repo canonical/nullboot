@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"path"
 
 	"github.com/canonical/go-efilib"
