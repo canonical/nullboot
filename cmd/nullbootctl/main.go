@@ -52,16 +52,16 @@ func main() {
 		}
 		if os.Args[1] == "install" {
 			os.Args = os.Args[1:] // Strip this command (it is the default)
+			os.Args[0] = "nullbootctl install"
+			cmdInstall()
+			return
 		}
-		if len(os.Args[1]) == 0 || os.Args[1][0] != '-' {
-			fmt.Fprintf(os.Stderr, "nullbootctl: '%v' is not a valid command. See 'nullbootctl --help'.\n", os.Args[1])
-			os.Exit(1)
-		}
+		fmt.Fprintf(os.Stderr, "nullbootctl: '%v' is not a valid command. See 'nullbootctl --help'.\n", os.Args[1])
+		os.Exit(1)
 	}
+	fmt.Fprintf(os.Stderr, "nullbootctl: valid commands: install, recovery-key\n")
+	os.Exit(1)
 
-	// Default "install" command
-	os.Args[0] = "nullbootctl install"
-	cmdInstall()
 }
 
 const (
