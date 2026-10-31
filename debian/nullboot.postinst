@@ -2,10 +2,10 @@
 set -e
 if [ "$1" = "configure" ] && [ -e "/boot/efi/EFI/ubuntu/" ]; then
     systemctl enable nullboot-fallback.service
-    nullbootctl
+    nullbootctl install
 fi
 if [ "$1" = "triggered" ] && [ -e "/boot/efi/EFI/ubuntu/" ]; then
-    nullbootctl
+    nullbootctl install
 fi
 
 #DEBHELPER#
