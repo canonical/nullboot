@@ -43,8 +43,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	recoveryKeyOptions := defaultRecoveryKeyOptions
 	if _, err := parser.AddCommand("recovery-key", "Manage disk encryption recovery keys",
-		"Create, list, delete or verify a LUKS2 disk encryption recovery key.", defaultRecoveryKeyOptions); err != nil {
+		"Create, list, delete or verify a LUKS2 disk encryption recovery key.", &recoveryKeyOptions); err != nil {
+		log.Fatal(err)
+	}
+
+	if _, err := parser.AddCommand("encrypt", "Encrypt an image without protecting the key to a specific guest instance", "", &encryptOptions{}); err != nil {
 		log.Fatal(err)
 	}
 
