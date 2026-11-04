@@ -37,7 +37,7 @@ type recoveryKeyOptions struct {
 	Name   string `long:"name" value-name:"<name>" description:"Name of the recovery key"`
 }
 
-var defaultRecoveryKeyOptions = &recoveryKeyOptions{
+var defaultRecoveryKeyOptions = recoveryKeyOptions{
 	Device: defaultCloudimgEncryptedDevice,
 	Name:   defaultRecoveryName,
 }
