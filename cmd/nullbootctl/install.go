@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"github.com/canonical/nullboot/efibootmgr"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -22,16 +21,9 @@ func syncDirectory(dir string) error {
 	return err
 }
 
-func cmdInstall() {
+func cmdInstall(opts *installOptions) {
 	var assets *efibootmgr.TrustedAssets
 	var err error
-
-	noTPM := flag.Bool("no-tpm", false, "Do not do any resealing with the TPM")
-	noEfivars := flag.Bool("no-efivars", false, "Do not use or update the EFI variables. Disables kernel fallback mechanism")
-	outputJSON := flag.String("output-json", "", "JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism")
-	noBootNext := flag.Bool("no-boot-next", false, "Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.")
-
-	flag.Parse()
 
 	const (
 		esp             = "/boot/efi"
@@ -40,8 +32,8 @@ func cmdInstall() {
 		vendor          = "ubuntu"
 	)
 
-	usingRealEFIVars := *outputJSON == "" && !*noEfivars
-	if !*noTPM {
+	usingRealEFIVars := opts.OutputJSON == "" && !opts.NoEfivars
+	if !opts.NoTPM {
 		assets, err = efibootmgr.ReadTrustedAssets()
 		if err != nil {
 			log.Println("cannot read trusted asset hashes:", err)
@@ -63,12 +55,12 @@ func cmdInstall() {
 
 	var maybeBm *efibootmgr.BootManager
 	var efivars efibootmgr.EFIVariables
-	if *outputJSON != "" {
+	if opts.OutputJSON != "" {
 		efivars = &efibootmgr.MockEFIVariables{}
 	} else {
 		efivars = efibootmgr.RealEFIVariables{}
 	}
-	if !*noEfivars {
+	if !opts.NoEfivars {
 		if bm, err := efibootmgr.NewBootManagerForVariables(efivars); err != nil {
 			log.Println("cannot load efi boot variables:", err)
 			os.Exit(1)
@@ -144,7 +136,7 @@ func cmdInstall() {
 	// can be updated accordingly; notably, the BootCurrent will become
 	// BootOrder[0]
 	if !isCurrentBootLatest {
-		if !*noBootNext {
+		if !opts.NoBootNext {
 			if err := km.SetLatestKernelToBootNext(); err != nil {
 				log.Printf("Unable to set kernel fallback for new kernel: %v", err)
 				os.Exit(1)
@@ -191,16 +183,16 @@ func cmdInstall() {
 			os.Exit(2)
 		}
 
-		f, err := os.Create(*outputJSON)
+		f, err := os.Create(opts.OutputJSON)
 		if err != nil {
-			log.Printf("Could not open JSON output file %s: %v", *outputJSON, err)
+			log.Printf("Could not open JSON output file %s: %v", opts.OutputJSON, err)
 			os.Exit(1)
 		}
 		defer f.Close()
 
 		_, err = f.Write(json)
 		if err != nil {
-			log.Printf("Could not write JSON output file %s: %v", *outputJSON, err)
+			log.Printf("Could not write JSON output file %s: %v", opts.OutputJSON, err)
 			os.Exit(1)
 		}
 	}

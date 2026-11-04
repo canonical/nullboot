@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/canonical/nullboot/efibootmgr"
 	"github.com/canonical/nullboot/luks2"
@@ -24,37 +23,37 @@ Options:
 `
 
 const (
-	default_cloudimg_encrypted_device = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
-	default_recovery_name             = "recovery-0001"
+	defaultCloudimgEncryptedDevice = "/dev/disk/by-label/" + efibootmgr.RootfsLabel
+	defaultRecoveryName            = "recovery-0001"
 )
 
-func usageRecoveryKey() {
-	fmt.Print(UsageRecoveryKey)
+// recoveryKeyOptions are the options accepted by the "recovery-key" command.
+type recoveryKeyOptions struct {
+	Create bool   `long:"create" description:"Create and set a recovery key"`
+	List   bool   `long:"list" description:"List recovery keys"`
+	Delete bool   `long:"delete" description:"Delete a recovery key"`
+	Verify bool   `long:"verify" description:"Verify a recovery key"`
+	Device string `long:"device" value-name:"<device>" description:"Device of the encrypted volume"`
+	Name   string `long:"name" value-name:"<name>" description:"Name of the recovery key"`
 }
 
-func cmdRecoveryKey() {
-	var devicePath string
-	var recoveryName string
-	doCreate := flag.Bool("create", false, "Create and set a recovery key")
-	doList := flag.Bool("list", false, "List recovery keys")
-	doDelete := flag.Bool("delete", false, "Delete a recovery key")
-	doVerify := flag.Bool("verify", false, "Verify a recovery key")
-	flag.StringVar(&devicePath, "device", default_cloudimg_encrypted_device, "Device of the encrypted volume")
-	flag.StringVar(&recoveryName, "name", default_recovery_name, "Name of the recovery key")
-	flag.Usage = usageRecoveryKey
-	flag.Parse()
+var defaultRecoveryKeyOptions = &recoveryKeyOptions{
+	Device: defaultCloudimgEncryptedDevice,
+	Name:   defaultRecoveryName,
+}
 
+func cmdRecoveryKey(opts *recoveryKeyOptions) {
 	mutuallyExclusiveOptsCount := 0
-	if *doCreate {
+	if opts.Create {
 		mutuallyExclusiveOptsCount++
 	}
-	if *doDelete {
+	if opts.Delete {
 		mutuallyExclusiveOptsCount++
 	}
-	if *doList {
+	if opts.List {
 		mutuallyExclusiveOptsCount++
 	}
-	if *doVerify {
+	if opts.Verify {
 		mutuallyExclusiveOptsCount++
 	}
 
@@ -64,14 +63,14 @@ func cmdRecoveryKey() {
 	}
 
 	var err error
-	if *doList {
-		err = luks2.ListRecoveryKeys(devicePath)
-	} else if *doDelete {
-		err = luks2.DeleteRecoveryKey(devicePath, recoveryName)
-	} else if *doCreate {
-		err = luks2.CreateRecoveryKey(devicePath, recoveryName)
-	} else if *doVerify {
-		err = luks2.VerifyRecoveryKey(devicePath)
+	if opts.List {
+		err = luks2.ListRecoveryKeys(opts.Device)
+	} else if opts.Delete {
+		err = luks2.DeleteRecoveryKey(opts.Device, opts.Name)
+	} else if opts.Create {
+		err = luks2.CreateRecoveryKey(opts.Device, opts.Name)
+	} else if opts.Verify {
+		err = luks2.VerifyRecoveryKey(opts.Device)
 	} else {
 		fmt.Fprintf(os.Stderr, "Please select at least one action: --create, --list, --delete, --verify\n")
 		os.Exit(1)
