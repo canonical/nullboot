@@ -340,6 +340,7 @@ func configureLogging() {
 			log.ErrorLevel,
 			log.WarnLevel})
 	w.SetFormatter(&log.TextFormatter{
+		ForceColors:            true, // Have the same output when piped (e.g., to grep)
 		FullTimestamp:          true,
 		TimestampFormat:        time.RFC3339Nano,
 		DisableLevelTruncation: true,
@@ -353,6 +354,7 @@ func configureLogging() {
 			log.DebugLevel,
 			log.TraceLevel})
 	w.SetFormatter(&log.TextFormatter{
+		ForceColors:            true, // Have the same output when piped (e.g., to grep)
 		FullTimestamp:          true,
 		TimestampFormat:        time.RFC3339Nano,
 		DisableLevelTruncation: true,

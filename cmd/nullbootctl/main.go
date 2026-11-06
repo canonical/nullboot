@@ -35,7 +35,14 @@ func (opts *recoveryKeyOptions) Execute(args []string) error {
 	return nil
 }
 
+func configureLoggingDefault() {
+	log.SetFormatter(&log.TextFormatter{
+		ForceColors: true, // Have the same output when piped (e.g., to grep)
+	})
+}
+
 func main() {
+	configureLoggingDefault()
 	parser := flags.NewParser(nil, flags.Default)
 	parser.SubcommandsOptional = false
 
