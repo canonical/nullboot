@@ -28,9 +28,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/canonical/nullboot/internal/efienv"
 	efi "github.com/canonical/go-efilib"
 	"github.com/canonical/go-tpm2"
+	"github.com/canonical/nullboot/internal/efienv"
 	"github.com/canonical/tcglog-parser"
 
 	check "gopkg.in/check.v1"
