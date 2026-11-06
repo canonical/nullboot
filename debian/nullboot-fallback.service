@@ -10,7 +10,7 @@ Type=oneshot
 
 # If BootCurrent is the latest kernel, update BootOrder
 # Also ensures a bad kernel is not reset to BootNext if a boot was unsuccessful
-ExecStart=/usr/bin/nullbootctl -no-boot-next
+ExecStart=/usr/bin/nullbootctl install --no-boot-next
 
 [Install]
 WantedBy=multi-user.target
