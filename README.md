@@ -10,11 +10,12 @@ Use cases
 
 Usage:
 ```
-1. nullbootctl [install] [OPTIONS]
+1. nullbootctl install [OPTIONS]
 2. nullbootctl recovery-key [OPTIONS]
+3. nullbootctl encrypt [OPTIONS]
 ```
 
-### nullbootctl [install]
+### nullbootctl install
 
 Install shim and UKI in EFI System Partition.
 
@@ -91,6 +92,34 @@ R2
 # echo 38785-16377-60025-09490-45202-37955-36799-29994 | nullbootctl recovery-key --verify
 success
 ```
+
+### nullbootctl encrypt
+
+Perform the pre-encryption of a Ubuntu cloud image without protecting the key
+to a specific guest instance. The key is stored in cleartext inside the LUKS
+metadata, and can be used to create a pool of pre-encrypted images.
+
+See `nullbootctl encrypt --help` for options:
+```
+Usage:
+  nullbootctl encrypt [OPTIONS] Source image path (file or block device)
+
+Help Options:
+  -h, --help                            Show this help message
+
+Options:
+      -o, --output=                     Output image path
+          --kernel-efi=                 Path to kernel.efi for booting
+          --override-datasources=       Override the cloud-init datasources with the
+                                        supplied comma-delimited list of sources
+          --grow-root                   Grow the root partition to fill the available
+                                        space, disabling cloud-init's cc_growpart
+          --root-partition-uuid=        Explicitly provide the root partition UUID
+                                        instead of relying on partition type
+          --efi-partition-uuid=         Explicitly provide the ESP partition UUID instead
+                                        of relying on partition type
+```
+
 
 Build
 -----
