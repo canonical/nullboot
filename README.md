@@ -10,11 +10,12 @@ Use cases
 
 Usage:
 ```
-1. nullbootctl [install] [OPTIONS]
+1. nullbootctl install [OPTIONS]
 2. nullbootctl recovery-key [OPTIONS]
+3. nullbootctl encrypt [OPTIONS]
 ```
 
-### nullbootctl [install]
+### nullbootctl install
 
 Install shim and UKI in EFI System Partition.
 
@@ -91,6 +92,13 @@ R2
 # echo 38785-16377-60025-09490-45202-37955-36799-29994 | nullbootctl recovery-key --verify
 success
 ```
+
+### nullbootctl encrypt
+
+Perform the pre-encryption of a Ubuntu cloud image without protecting the key
+to a specific guest instance. The key is stored in cleartext inside the LUKS
+metadata, and can be used to create a pool of pre-encrypted images.
+
 
 Build
 -----
