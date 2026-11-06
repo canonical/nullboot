@@ -10,11 +10,12 @@ Use cases
 
 Usage:
 ```
-1. nullbootctl [install] [OPTIONS]
+1. nullbootctl install [OPTIONS]
 2. nullbootctl recovery-key [OPTIONS]
+3. nullbootctl encrypt [OPTIONS]
 ```
 
-### nullbootctl [install]
+### nullbootctl install
 
 Install shim and UKI in EFI System Partition.
 
@@ -26,17 +27,24 @@ More specifically:
 
 It is intended to be called upon shim and UKI update.
 
-See `nullbootctl install -h` for options:
+See `nullbootctl install --help` for options:
 ```
-Usage of nullbootctl install:
-  -no-boot-next
-    	Disables use of BootNext. This flag must be disabled in order to upgrade to a new kernel version.
-  -no-efivars
-    	Do not use or update the EFI variables. Disables kernel fallback mechanism
-  -no-tpm
-    	Do not do any resealing with the TPM
-  -output-json string
-    	JSON file to write. Disables writing real EFI variables and enablement of the kernel fallback mechanism
+Usage:
+  nullbootctl install [OPTIONS]
+
+Help Options:
+  -h, --help                      Show this help message
+
+Options:
+          --no-tpm                Do not do any resealing with the TPM
+          --no-efivars            Do not use or update the EFI variables.
+                                  Disables kernel fallback mechanism
+          --output-json=<file>    JSON file to write. Disables writing real EFI
+                                  variables and enablement of the kernel
+                                  fallback mechanism
+          --no-boot-next          Disables use of BootNext. This flag must be
+                                  disabled in order to upgrade to a new kernel
+                                  version.
 ```
 
 
@@ -46,17 +54,24 @@ Manage recovery keys (LUKS passphrases) of a LUKS container.
 
 This shall setup, list, delete and verify recovery keys for a LUKS container.
 
-See `nullbootctl recovery-key -h` for options:
+See `nullbootctl recovery-key --help` for options:
 ```
 Usage:
-nullbootctl recovery-key --create [--device <device>] [--name <name>]
-                         --delete [--device <device>] [--name <name>]
-                         --list   [--device <device>]
-                         --verify [--device <device>]
+  nullbootctl recovery-key [OPTIONS]
+
+Create, list, delete or verify a LUKS2 disk encryption recovery key.
+
+Help Options:
+  -h, --help                   Show this help message
 
 Options:
-  <device>   LUKS2 device
-  <name>     Name of the recovery key
+          --create             Create and set a recovery key
+          --list               List recovery keys
+          --delete             Delete a recovery key
+          --verify             Verify a recovery key
+          --device=<device>    Device of the encrypted volume (default:
+                               /dev/disk/by-label/cloudimg-rootfs-enc)
+          --name=<name>        Name of the recovery key (default: recovery-0001)
 ```
 
 Example:
@@ -77,6 +92,13 @@ R2
 # echo 38785-16377-60025-09490-45202-37955-36799-29994 | nullbootctl recovery-key --verify
 success
 ```
+
+### nullbootctl encrypt
+
+Perform the pre-encryption of a Ubuntu cloud image without protecting the key
+to a specific guest instance. The key is stored in cleartext inside the LUKS
+metadata, and can be used to create a pool of pre-encrypted images.
+
 
 Build
 -----

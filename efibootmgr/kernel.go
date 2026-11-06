@@ -6,8 +6,8 @@ package efibootmgr
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"path"
 	"sort"
 	"strings"
