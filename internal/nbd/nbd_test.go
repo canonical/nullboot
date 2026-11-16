@@ -88,16 +88,16 @@ while [ $# -gt 0 ]; do
 			exit 0
 			;;
 		-c)
+			i=0
+			# Synchronize this process with udevadm mocked command,
+			# this way the qemu-nbd command doesn't return before
+			# the udevadm mocked command had time to log its call.
+			while [ ! -e %[5]s ] && [ $i -lt 100 ]; do
+				i=$((i+1))
+				sleep 0.001
+			done
+			rm -f %[5]s
 			if [ -e %[4]s ]; then
-				i=0
-				# Synchronize this process with udevadm mocked command,
-				# this way the qemu-nbd command doesn't return before
-				# the udevadm mocked command had time to log its call.
-				while [ ! -e %[5]s ] && [ $i -lt 100 ]; do
-					i=$((i+1))
-					sleep 0.001
-				done
-				rm -f %[5]s
 				exit 1
 			fi
 			echo "$$:$2" > %[2]s
@@ -389,7 +389,7 @@ var (
 
 func runMockUdevadmMonitor() int {
 	for {
-		f, err := os.Open(*mockUdevadmMonitor)
+		f, err := os.OpenFile(*mockUdevadmMonitor, os.O_RDWR, 0)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err)
 			return 1
