@@ -76,11 +76,6 @@ type BootManager struct {
 	bootOrderAttrs efi.VariableAttributes    // The attributes of BootOrder variable
 }
 
-// NewBootManagerFromSystem returns a new BootManager object, initialized with the system state.
-func NewBootManagerFromSystem() (BootManager, error) {
-	return NewBootManagerForVariables(RealEFIVariables{})
-}
-
 // NewBootManagerForVariables returns a boot manager for the given EFIVariables manager
 func NewBootManagerForVariables(efivars EFIVariables) (BootManager, error) {
 	var err error

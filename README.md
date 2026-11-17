@@ -1,18 +1,17 @@
-A boot manager that isn't
-=========================
+# A boot manager that isn't
 
 nullboot is a boot manager for environments that do not need a boot manager.
 Instead of running a boot manager at boot, it directly manages the UEFI boot
 entries for you.
 
-Use cases
----------
+## Use cases
 
 Usage:
 ```
-1. nullbootctl install [OPTIONS]
+1. nullbootctl install      [OPTIONS]
 2. nullbootctl recovery-key [OPTIONS]
-3. nullbootctl encrypt [OPTIONS]
+3. nullbootctl encrypt      [OPTIONS]
+4. nullbootctl deploy       [OPTIONS]
 ```
 
 ### nullbootctl install
@@ -108,6 +107,7 @@ Help Options:
   -h, --help                            Show this help message
 
 Options:
+      -v, --verbose                     Enable verbose debug output
       -o, --output=                     Output image path
           --kernel-efi=                 Path to kernel.efi for booting
           --override-datasources=       Override the cloud-init datasources with the
@@ -120,15 +120,68 @@ Options:
                                         of relying on partition type
 ```
 
+### nullbootctl deploy
 
-Build
------
+Take a pre-encrypted image and protect the key to a virtual TPM associated with
+a specific guest instance, removing the cleartext key in the process. Once this
+step has been performed, the image is only bootable on that specific guest
+instance. The deploy step does not need access to the actual TPM, but does need
+access to the public area of the storage primary key.
+
+See `nullbootctl deploy --help` for options:
+```
+Usage:
+  nullbootctl deploy [OPTIONS] Source image path (file or block device)
+
+Help Options:
+  -h, --help                                Show this help message
+
+Options:
+      -v, --verbose                         Enable verbose debug output
+          --recovery-key-file=              Add a recovery key from the supplied file. The key
+                                            must be 16-bytes long
+          --add-efi-boot-manager-profile    Protect the disk unlock key with the EFI boot
+                                            manager code and boot attempts profile (PCR4)
+          --add-efi-secure-boot-profile     Protect the disk unlock key with the EFI secure
+                                            boot policy profile (PCR7)
+          --add-ubuntu-kernel-profile       Protect the disk unlock key with properties
+                                            measured by the Ubuntu kernel (PCR12). Also
+                                            prevents access outside of early boot
+          --root-partition-uuid=            Explicitly provide the root partition UUID instead
+                                            of relying on partition type
+          --efi-partition-uuid=             Explicitly provide the ESP partition UUID instead
+                                            of relying on partition type
+          --az-disk-profile=
+          --uefi-config=                    JSON file describring the platform firmware
+                                            configuration
+          --srk-template-unique-data=       Path to the TPMU_PUBLIC_ID structure used to
+                                            create the SRK
+          --srk-pub=                        Path to SRK public area
+          --standard-srk-template           Indicate that the supplied SRK was created with
+                                            the TCG TPM v2.0 Provisioning Guidance spec
+```
+
+
+
+## Build
 ```
 $ go build -o . ./...
 ```
 
-Licensing
----------
+## Testing
+
+### Unit tests
+
+```
+go test -v -coverprofile=profile.cov ./...
+```
+
+### Test encrypt & deploy
+
+See [README-test-encrypt-deploy.md](README-test-encrypt-deploy.md).
+
+
+## Licensing
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License version 3, as published by the Free
 Software Foundation.

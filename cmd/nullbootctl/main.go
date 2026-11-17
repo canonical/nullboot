@@ -60,6 +60,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if _, err := parser.AddCommand("deploy", "Prepare an encrypted image for deployment to a specific guest instance", "", &deployOptions{});  err != nil {
+		log.Fatal(err)
+	}
+
 	if _, err := parser.Parse(); err != nil {
 		if flagsErr, ok := err.(*flags.Error); ok && flagsErr.Type == flags.ErrHelp {
 			os.Exit(0)
