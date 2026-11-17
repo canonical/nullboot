@@ -32,23 +32,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type teeReadCloser struct {
-	rc io.ReadCloser
-	w  io.Writer
-}
-
-func (t *teeReadCloser) Read(p []byte) (int, error) {
-	n, err := t.rc.Read(p)
-	if n > 0 {
-		if n, err := t.w.Write(p); err != nil {
-			return n, err
-		}
-	}
-	return n, err
-}
-
-func (t *teeReadCloser) Close() error {
-	return t.rc.Close()
+func newTeeReadCloser(rc io.ReadCloser, w io.Writer) io.ReadCloser {
+	return struct {
+		io.Reader
+		io.Closer
+	}{io.TeeReader(rc, w), rc}
 }
 
 type LoggedCmd struct {
@@ -162,7 +150,7 @@ func (c *LoggedCmd) Start() error {
 		c.closeAfterStartError = append(c.closeAfterStartError, stdout)
 
 		if c.Stdout != nil {
-			stdout = &teeReadCloser{stdout, c.Stdout}
+			stdout = newTeeReadCloser(stdout, c.Stdout)
 		}
 
 		go logger(stdout, func(v ...interface{}) { c.childLogger.Debugln(v...) })
@@ -177,7 +165,7 @@ func (c *LoggedCmd) Start() error {
 		}
 
 		if c.Stderr != nil {
-			stderr = &teeReadCloser{stderr, c.Stderr}
+			stderr = newTeeReadCloser(stderr, c.Stderr)
 		}
 
 		go logger(stderr, func(v ...interface{}) { c.childLogger.Warningln(v...) })
