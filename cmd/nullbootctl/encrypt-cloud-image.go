@@ -30,7 +30,6 @@ import (
 	"time"
 
 	efi "github.com/canonical/go-efilib"
-	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 
 	internal_exec "github.com/canonical/nullboot/internal/exec"
@@ -50,14 +49,9 @@ var (
 	linuxFilesystemGUID = efi.MakeGUID(0x0FC63DAF, 0x8483, 0x4772, 0x8E79, [...]uint8{0x3D, 0x69, 0xD8, 0x47, 0x7D, 0xE4})
 )
 
-type options struct {
+type commonOptions struct {
 	Verbose bool `short:"v" long:"verbose" description:"Enable verbose debug output"`
 }
-
-var (
-	opts   options
-	parser = flags.NewParser(&opts, flags.HelpFlag|flags.PassDoubleDash)
-)
 
 func mount(dev, path, fs string) (cleanup func() error, err error) {
 	cmd := internal_exec.LoggedCommand("mount", "-t", fs, dev, path)
@@ -304,19 +298,13 @@ func (b *encryptCloudImageBase) mountESP() (path string, err error) {
 	return path, nil
 }
 
-func runCommand(command flags.Commander, args []string) error {
-	if opts.Verbose {
+func initializeLogging(verbose bool) {
+	if verbose {
 		log.SetLevel(log.DebugLevel)
 		log.Debugln("Enabling verbose output")
 	}
 
 	log.Debugln("args:", strings.Join(os.Args, " "))
-
-	if err := checkPrerequisites(); err != nil {
-		return err
-	}
-
-	return command.Execute(args)
 }
 
 func checkPrerequisites() error {

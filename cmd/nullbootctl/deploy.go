@@ -42,6 +42,7 @@ import (
 )
 
 type deployOptions struct {
+	commonOptions
 	RecoveryKeyFile          string `long:"recovery-key-file" description:"Add a recovery key from the supplied file. The key must be 16-bytes long"`
 	AddEFIBootManagerProfile bool   `long:"add-efi-boot-manager-profile" description:"Protect the disk unlock key with the EFI boot manager code and boot attempts profile (PCR4)"`
 	AddEFISecureBootProfile  bool   `long:"add-efi-secure-boot-profile" description:"Protect the disk unlock key with the EFI secure boot policy profile (PCR7)"`
@@ -469,6 +470,13 @@ func (d *imageDeployer) deployImageFromFile() error {
 }
 
 func (d *imageDeployer) run(opts *deployOptions) error {
+	configureLogging()
+	initializeLogging(opts.Verbose)
+
+	if err := checkPrerequisites(); err != nil {
+		return err
+	}
+
 	d.opts = opts
 
 	d.enterScope()
