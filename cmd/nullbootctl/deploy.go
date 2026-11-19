@@ -73,6 +73,7 @@ func readUniqueData(path string, alg tpm2.ObjectTypeId) (*tpm2.PublicIDU, error)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open file: %w", err)
 	}
+	defer f.Close()
 
 	switch alg {
 	case tpm2.ObjectTypeRSA:
@@ -154,7 +155,7 @@ func (d *imageDeployer) maybeWriteCustomSRKTemplate(esp string, srkPub *tpm2.Pub
 		return fmt.Errorf("cannot marshal SRK template: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %w", err)
 	}
