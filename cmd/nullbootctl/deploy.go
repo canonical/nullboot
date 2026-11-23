@@ -37,6 +37,7 @@ import (
 	secboot_efi "github.com/snapcore/secboot/efi"
 	secboot_tpm2 "github.com/snapcore/secboot/tpm2"
 
+	"github.com/canonical/nullboot/efibootmgr"
 	"github.com/canonical/nullboot/internal/efienv"
 	"github.com/canonical/nullboot/internal/luks2"
 )
@@ -409,7 +410,7 @@ func (d *imageDeployer) deployImageOnDevice() error {
 	srkName := srkPub.Name()
 	log.Infof("supplied SRK name: %x\n", srkName)
 
-	keyDir := filepath.Join(espPath, "device/fde")
+	keyDir := filepath.Join(espPath, efibootmgr.KeyFileDir)
 	if err := os.MkdirAll(keyDir, 0700); err != nil {
 		return fmt.Errorf("cannot create directory to store sealed disk unlock key: %w", err)
 	}
@@ -425,7 +426,7 @@ func (d *imageDeployer) deployImageOnDevice() error {
 		return fmt.Errorf("cannot get TPM protected key: %w", err)
 	}
 
-	keyPath := filepath.Join(keyDir, "cloudimg-rootfs.sealed-key")
+	keyPath := filepath.Join(keyDir, efibootmgr.KeyFileBasename)
 	log.Infoln("Writing protected key to ", keyPath)
 	w := secboot.NewFileKeyDataWriter(keyPath)
 	if err := protectedKey.WriteAtomic(w); err != nil {
