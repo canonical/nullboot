@@ -108,54 +108,6 @@ type FormatOptions struct {
 	KDFOptions KDFOptions
 }
 
-// Format will initialize a LUKS2 container with the specified options and set the primary key to the
-// supplied key. The label for the new container will be set to the supplied label. This can only be
-// called on a device that is not mapped.
-//
-// The container will be configured to encrypt data with AES-256 and XTS block cipher mode. The
-// KDF for the primary keyslot will be PBKDF2 with the provided iteration count.
-//
-// WARNING: This function is destructive. Calling this on an existing LUKS2 container will make the
-// data contained inside of it irretrievable.
-func Format(devicePath, label string, key []byte, opts *FormatOptions) error {
-	if opts == nil {
-		var defaultOpts FormatOptions
-		opts = &defaultOpts
-	}
-
-	args := []string{
-		// batch processing, no password verification for formatting an existing LUKS container
-		"-q",
-		// formatting a new volume
-		"luksFormat",
-		// use LUKS2
-		"--type", "luks2",
-		// read the key from stdin
-		"--key-file", "-",
-		// use AES-256 with XTS block cipher mode (XTS requires 2 keys)
-		"--cipher", "aes-xts-plain64", "--key-size", strconv.Itoa(keySize * 8),
-		// set LUKS2 label
-		"--label", label}
-
-	// apply KDF options
-	args = opts.KDFOptions.appendArguments(args)
-
-	if opts.MetadataKiBSize != 0 {
-		// override the default metadata area size if specified
-		args = append(args, "--luks2-metadata-size", fmt.Sprintf("%dk", opts.MetadataKiBSize))
-	}
-	if opts.KeyslotsAreaKiBSize != 0 {
-		// override the default keyslots area size if specified
-		args = append(args, "--luks2-keyslots-size", fmt.Sprintf("%dk", opts.KeyslotsAreaKiBSize))
-	}
-
-	args = append(args,
-		// device to format
-		devicePath)
-
-	return cryptsetupCmd(bytes.NewReader(key), nil, args...)
-}
-
 // AddKeyOptions provides the options for adding a key to a LUKS2 volume
 type AddKeyOptions struct {
 	// KDFOptions describes the KDF options for the new key slot.
@@ -267,17 +219,4 @@ func ImportToken(devicePath string, token Token) error {
 // LUKS2 container.
 func RemoveToken(devicePath string, id int) error {
 	return cryptsetupCmd(nil, nil, "token", "remove", "--token-id", strconv.Itoa(id), devicePath)
-}
-
-// KillSlot erases the keyslot with the supplied slot number from the specified LUKS2 container.
-// Note that a valid key for a remaining keyslot must be supplied, in order to prevent the last
-// keyslot from being erased.
-func KillSlot(devicePath string, slot int, key []byte) error {
-	return cryptsetupCmd(bytes.NewReader(key), nil, "luksKillSlot", "--type", "luks2", "--key-file", "-", devicePath, strconv.Itoa(slot))
-}
-
-// SetSlotPriority sets the priority of the keyslot with the supplied slot number on
-// the specified LUKS2 container.
-func SetSlotPriority(devicePath string, slot int, priority SlotPriority) error {
-	return cryptsetupCmd(nil, nil, "config", "--priority", priority.String(), "--key-slot", strconv.Itoa(slot), devicePath)
 }

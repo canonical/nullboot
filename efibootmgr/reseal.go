@@ -28,18 +28,23 @@ import (
 )
 
 const (
-	keyFilePath   = "device/fde/cloudimg-rootfs.sealed-key"
-	keyringPrefix = "ubuntu-fde"
-	RootfsLabel   = "cloudimg-rootfs-enc"
+	KeyFileDir      = "device/fde"
+	KeyFileBasename = "cloudimg-rootfs.sealed-key"
+	keyFilePath     = KeyFileDir + "/" + KeyFileBasename
+	keyringPrefix   = "ubuntu-fde"
+	RootfsLabel     = "cloudimg-rootfs-enc"
 )
 
 var (
-	efiComputePeImageDigest                       = efi.ComputePeImageDigest
-	sbGetPrimaryKeyFromKernel                     = secboot.GetPrimaryKeyFromKernel
-	sbtpmConnectToDefaultTPM                      = secboot_tpm2.ConnectToDefaultTPM
-	sbtpmReadSealedKeyObjectFromFile              = secboot_tpm2.ReadSealedKeyObjectFromFile
-	sbtpmSealedKeyObjectUpdatePCRProtectionPolicy = (*secboot_tpm2.SealedKeyObject).UpdatePCRProtectionPolicy
-	sbtpmSealedKeyObjectWriteAtomic               = (*secboot_tpm2.SealedKeyObject).WriteAtomic
+	efiComputePeImageDigest                     = efi.ComputePeImageDigest
+	sbGetPrimaryKeyFromKernel                   = secboot.GetPrimaryKeyFromKernel
+	sbtpmConnectToDefaultTPM                    = secboot_tpm2.ConnectToDefaultTPM
+	sbtpmNewKeyDataFromSealedKeyObjectFile      = secboot_tpm2.NewKeyDataFromSealedKeyObjectFile
+	sbNewFileKeyDataReader                      = secboot.NewFileKeyDataReader
+	sbReadKeyData                               = secboot.ReadKeyData
+	sbtpmNewSealedKeyData                       = secboot_tpm2.NewSealedKeyData
+	sbtpmSealedKeyDataUpdatePCRProtectionPolicy = (*secboot_tpm2.SealedKeyData).UpdatePCRProtectionPolicy
+	sbKeyDataWriteAtomic                        = (*secboot.KeyData).WriteAtomic
 
 	unixKeyctlInt = unix.KeyctlInt
 )
@@ -285,6 +290,19 @@ func computePCRProtectionProfile(loadChains []*LoadChain) (*secboot_tpm2.PCRProt
 	return profile, nil
 }
 
+// isErrUnexpectedJson tells if an error reported by the legacy [secboot_tpm2.NewKeyDataFromSealedKeyObjectFile]
+// actually reveals that the underlying storage format for key data is the new JSON format.
+var isErrKeyDataUnexpectedJson = func(err error) bool {
+	var ikderr secboot_tpm2.InvalidKeyDataError
+	if errors.As(err, &ikderr) && strings.Contains(err.Error(), "unexpected magic (2065852261)") {
+		// key data is probably stored in the new JSON format, as 2065852261 = 0x7b226765,
+		// and "7b226765" is the hex notation of "{\"ge" (starting a JSON object)
+		return true
+	} else {
+		return false
+	}
+}
+
 // ResealKey updates the PCR profile for the disk encryption key to incorporate
 // the boot assets installed directly by the package manager and those assets
 // copied by this package to the ESP.
@@ -361,9 +379,25 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 		return fmt.Errorf("some assets failed an integrity check: %v", context.failedPaths)
 	}
 
-	k, err := sbtpmReadSealedKeyObjectFromFile(filepath.Join(esp, keyFilePath))
+	path := filepath.Join(esp, keyFilePath)
+	keyData, err := sbtpmNewKeyDataFromSealedKeyObjectFile(path)
 	if err != nil {
-		return fmt.Errorf("cannot read sealed key file: %w", err)
+		if isErrKeyDataUnexpectedJson(err) {
+			log.Println("ReasealKey: key data not in legacy format. Assuming JSON format...")
+			r, err := sbNewFileKeyDataReader(path)
+			if err != nil {
+				return fmt.Errorf("cannot read sealed key file (JSON): %w", err)
+			}
+			keyData, err = sbReadKeyData(r)
+			if err != nil {
+				return fmt.Errorf("cannot decode sealed key file: %w", err)
+			}
+		} else {
+			return fmt.Errorf("cannot read sealed key file: %w", err)
+		}
+	} else {
+		// Legacy format with magic USK$
+		log.Println("ReasealKey: read key data in legacy format")
 	}
 
 	// XXX: Connection is required because we do integrity checks
@@ -375,15 +409,19 @@ func ResealKey(assets *TrustedAssets, km *KernelManager, esp, shimSource, vendor
 	}
 	defer tpm.Close()
 
-	if err := sbtpmSealedKeyObjectUpdatePCRProtectionPolicy(k, tpm, authKey, pcrProfile); err != nil {
-		return fmt.Errorf("cannot update PCR profile: %w", err)
+	skd, err := sbtpmNewSealedKeyData(keyData)
+	if err != nil {
+		return fmt.Errorf("cannot obtain SealedKeyData: %w", err)
 	}
 
-	w := secboot_tpm2.NewFileSealedKeyObjectWriter(filepath.Join(esp, keyFilePath))
-	if err := sbtpmSealedKeyObjectWriteAtomic(k, w); err != nil {
-		return fmt.Errorf("cannot write updated sealed key object: %w", err)
+	if err := sbtpmSealedKeyDataUpdatePCRProtectionPolicy(skd, tpm, authKey, pcrProfile, secboot_tpm2.NewPCRPolicyVersion); err != nil {
+		return err
 	}
 
+	w := secboot.NewFileKeyDataWriter(path)
+	if err := sbKeyDataWriteAtomic(keyData, w); err != nil {
+		return fmt.Errorf("cannot write sealed key data file: %w", err)
+	}
 	return nil
 }
 

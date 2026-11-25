@@ -51,6 +51,7 @@ const (
 )
 
 type encryptOptions struct {
+	commonOptions
 	Output string `short:"o" long:"output" description:"Output image path"`
 
 	KernelEfi string `long:"kernel-efi" description:"Path to kernel.efi for booting"`
@@ -792,6 +793,11 @@ func (e *imageEncrypter) setupWorkingDir() error {
 
 func (e *imageEncrypter) run(opts *encryptOptions) error {
 	configureLogging()
+	initializeLogging(opts.Verbose)
+
+	if err := checkPrerequisites(); err != nil {
+		return err
+	}
 
 	e.opts = opts
 

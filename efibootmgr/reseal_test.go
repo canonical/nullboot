@@ -7,6 +7,7 @@ package efibootmgr
 import (
 	"bytes"
 	"crypto"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -43,27 +44,59 @@ func (*resealSuite) mockSbtpmConnectToDefaultTPM(fn func() (*secboot_tpm2.Connec
 	}
 }
 
-func (*resealSuite) mockSbtpmReadSealedKeyObjectFromFile(fn func(path string) (*secboot_tpm2.SealedKeyObject, error)) (restore func()) {
-	orig := sbtpmReadSealedKeyObjectFromFile
-	sbtpmReadSealedKeyObjectFromFile = fn
+func (*resealSuite) mockIsErrKeyDataUnexpectedJson(fn func(err error) bool) (restore func()) {
+	orig := isErrKeyDataUnexpectedJson
+	isErrKeyDataUnexpectedJson = fn
 	return func() {
-		sbtpmReadSealedKeyObjectFromFile = orig
+		isErrKeyDataUnexpectedJson = orig
 	}
 }
 
-func (*resealSuite) mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(fn func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile) error) (restore func()) {
-	orig := sbtpmSealedKeyObjectUpdatePCRProtectionPolicy
-	sbtpmSealedKeyObjectUpdatePCRProtectionPolicy = fn
+func (*resealSuite) mockNewFileKeyDataReader(fn func(path string) (*secboot.FileKeyDataReader, error)) (restore func()) {
+	orig := sbNewFileKeyDataReader
+	sbNewFileKeyDataReader = fn
 	return func() {
-		sbtpmSealedKeyObjectUpdatePCRProtectionPolicy = orig
+		sbNewFileKeyDataReader = orig
 	}
 }
 
-func (*resealSuite) mockSbtpmSealedKeyObjectWriteAtomic(fn func(k *secboot_tpm2.SealedKeyObject, w secboot.KeyDataWriter) error) (restore func()) {
-	orig := sbtpmSealedKeyObjectWriteAtomic
-	sbtpmSealedKeyObjectWriteAtomic = fn
+func (*resealSuite) mockReadKeyData(fn func(r secboot.KeyDataReader) (*secboot.KeyData, error)) (restore func()) {
+	orig := sbReadKeyData
+	sbReadKeyData = fn
 	return func() {
-		sbtpmSealedKeyObjectWriteAtomic = orig
+		sbReadKeyData = orig
+	}
+}
+
+func (*resealSuite) mockSbtpmNewKeyDataFromSealedKeyObjectFile(fn func(path string) (*secboot.KeyData, error)) (restore func()) {
+	orig := sbtpmNewKeyDataFromSealedKeyObjectFile
+	sbtpmNewKeyDataFromSealedKeyObjectFile = fn
+	return func() {
+		sbtpmNewKeyDataFromSealedKeyObjectFile = orig
+	}
+}
+
+func (*resealSuite) mockSbtpmNewSealedKeyData(fn func(k *secboot.KeyData) (*secboot_tpm2.SealedKeyData, error)) (restore func()) {
+	orig := sbtpmNewSealedKeyData
+	sbtpmNewSealedKeyData = fn
+	return func() {
+		sbtpmNewSealedKeyData = orig
+	}
+}
+
+func (*resealSuite) mockSbtpmSealedKeyDataUpdatePCRProtectionPolicy(fn func(k *secboot_tpm2.SealedKeyData, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile, policyVersionOption secboot_tpm2.PCRPolicyVersionOption) error) (restore func()) {
+	orig := sbtpmSealedKeyDataUpdatePCRProtectionPolicy
+	sbtpmSealedKeyDataUpdatePCRProtectionPolicy = fn
+	return func() {
+		sbtpmSealedKeyDataUpdatePCRProtectionPolicy = orig
+	}
+}
+
+func (*resealSuite) mockSbKeyDataWriteAtomic(fn func(k *secboot.KeyData, w secboot.KeyDataWriter) error) (restore func()) {
+	orig := sbKeyDataWriteAtomic
+	sbKeyDataWriteAtomic = fn
+	return func() {
+		sbKeyDataWriteAtomic = orig
 	}
 }
 
@@ -122,18 +155,21 @@ func (s *resealSuite) TestTrustedEfiImageBad(c *check.C) {
 }
 
 type testResealKeyData struct {
-	arch        string
-	primaryKey  secboot.PrimaryKey
-	devicePaths []string
-	shims       [][]byte
-	kernels     [][]byte
+	arch          string
+	primaryKey    secboot.PrimaryKey
+	devicePaths   []string
+	shims         [][]byte
+	kernels       [][]byte
+	sealedKeyJson bool // set it to true to test with sealed-key in JSON format
 }
 
 func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	var (
-		expectedSko                         *secboot_tpm2.SealedKeyObject = nil
-		expectedTpm                         *secboot_tpm2.Connection      = nil
-		userKeyringLinkedFromProcessKeyring                               = false
+		expectedKeyData                     *secboot.KeyData            = nil
+		expectedNewFileKeyDataReader        *secboot.FileKeyDataReader  = nil
+		expectedSkd                         *secboot_tpm2.SealedKeyData = nil
+		expectedTpm                         *secboot_tpm2.Connection    = nil
+		userKeyringLinkedFromProcessKeyring                             = false
 	)
 
 	restore := s.mockEfiArch(data.arch)
@@ -232,20 +268,53 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	})
 	defer restore()
 
-	restore = s.mockSbtpmReadSealedKeyObjectFromFile(func(path string) (*secboot_tpm2.SealedKeyObject, error) {
-		c.Check(expectedSko, check.IsNil)
+	if data.sealedKeyJson {
+		// Trigger the alternate code path when the sealed key is in JSON format
+		restore = s.mockIsErrKeyDataUnexpectedJson(func(error) bool { return true })
+		defer restore()
+		restore = s.mockSbtpmNewKeyDataFromSealedKeyObjectFile(func(path string) (*secboot.KeyData, error) {
+			return nil, fmt.Errorf("mocked error")
+		})
+		defer restore()
+		restore = s.mockNewFileKeyDataReader(func(path string) (*secboot.FileKeyDataReader, error) {
+			c.Check(expectedNewFileKeyDataReader, check.IsNil)
+			c.Check(path, check.Equals, "/boot/efi/device/fde/cloudimg-rootfs.sealed-key")
+			expectedNewFileKeyDataReader = &secboot.FileKeyDataReader{}
+			return expectedNewFileKeyDataReader, nil
+		})
+		defer restore()
+		restore = s.mockReadKeyData(func(r secboot.KeyDataReader) (*secboot.KeyData, error) {
+			c.Check(r, check.Equals, expectedNewFileKeyDataReader)
+			c.Check(expectedKeyData, check.IsNil)
+			expectedKeyData = &secboot.KeyData{}
+			return expectedKeyData, nil
+		})
+		defer restore()
 
-		c.Check(path, check.Equals, "/boot/efi/device/fde/cloudimg-rootfs.sealed-key")
+	} else {
+		restore = s.mockSbtpmNewKeyDataFromSealedKeyObjectFile(func(path string) (*secboot.KeyData, error) {
+			c.Check(expectedKeyData, check.IsNil)
+			c.Check(path, check.Equals, "/boot/efi/device/fde/cloudimg-rootfs.sealed-key")
+			expectedKeyData = &secboot.KeyData{}
+			return expectedKeyData, nil
+		})
+		defer restore()
+	}
 
-		expectedSko = &secboot_tpm2.SealedKeyObject{}
-		return expectedSko, nil
+	restore = s.mockSbtpmNewSealedKeyData(func(k *secboot.KeyData) (*secboot_tpm2.SealedKeyData, error) {
+		c.Check(k, check.Equals, expectedKeyData)
+		c.Check(expectedSkd, check.IsNil)
+
+		expectedSkd = &secboot_tpm2.SealedKeyData{}
+		return expectedSkd, nil
 	})
 	defer restore()
 
-	restore = s.mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile) error {
-		c.Check(k, check.Equals, expectedSko)
+	restore = s.mockSbtpmSealedKeyDataUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyData, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile, policyVersionOption secboot_tpm2.PCRPolicyVersionOption) error {
+		c.Check(k, check.Equals, expectedSkd)
 		c.Check(tpm, check.Equals, expectedTpm)
 		c.Check(authKey, check.DeepEquals, data.primaryKey)
+		c.Check(policyVersionOption, check.Equals, secboot_tpm2.NewPCRPolicyVersion)
 		c.Assert(profile, check.NotNil)
 
 		pcrs, _, err := profile.ComputePCRDigests(nil, tpm2.HashAlgorithmSHA256)
@@ -256,9 +325,9 @@ func (s *resealSuite) testResealKey(c *check.C, data *testResealKeyData) {
 	})
 	defer restore()
 
-	restore = s.mockSbtpmSealedKeyObjectWriteAtomic(func(k *secboot_tpm2.SealedKeyObject, w secboot.KeyDataWriter) error {
-		c.Check(k, check.Equals, expectedSko)
-		fw, ok := w.(*secboot_tpm2.FileSealedKeyObjectWriter)
+	restore = s.mockSbKeyDataWriteAtomic(func(k *secboot.KeyData, w secboot.KeyDataWriter) error {
+		c.Check(k, check.Equals, expectedKeyData)
+		fw, ok := w.(*secboot.FileKeyDataWriter)
 		c.Check(ok, check.Equals, true)
 		c.Check(fw, check.NotNil)
 		return nil
@@ -563,6 +632,32 @@ func (s *resealSuite) TestResealKeyGetPrimaryKeyFromKernelBug(c *check.C) {
 	})
 }
 
+func (s *resealSuite) TestResealKeyJson(c *check.C) {
+	c.Check(s.fs.WriteFile("/dev/sda1", nil, os.ModeDevice|0660), check.IsNil)
+	s.symlink(c, "/dev/sda1", "/dev/disk/by-label/cloudimg-rootfs-enc")
+
+	c.Check(s.fs.WriteFile("/boot/efi/device/fde/cloudimg-rootfs.sealed-key", []byte("key data"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/shimx64.efi", []byte("shim1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/usr/lib/nullboot/shim/shimx64.efi.signed", []byte("shim1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/boot/efi/EFI/ubuntu/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
+	c.Check(s.fs.WriteFile("/usr/lib/linux/kernel.efi-1.0-1-generic", []byte("kernel1"), 0600), check.IsNil)
+
+	s.testResealKey(c, &testResealKeyData{
+		arch:        "x64",
+		primaryKey:  []byte{1, 2, 3, 4, 5, 6},
+		devicePaths: []string{"/dev/sda1"},
+		shims: [][]byte{
+			[]byte("shim1"),
+			[]byte("shim1"),
+		},
+		kernels: [][]byte{
+			[]byte("kernel1"),
+			[]byte("kernel1"),
+		},
+		sealedKeyJson: true,
+	})
+}
+
 type testResealKeyUnhappyData struct {
 	noAuxKey        bool
 	fileLeak        bool
@@ -635,17 +730,22 @@ func (s *resealSuite) testResealKeyUnhappy(c *check.C, data *testResealKeyUnhapp
 	})
 	defer restore()
 
-	restore = s.mockSbtpmReadSealedKeyObjectFromFile(func(path string) (*secboot_tpm2.SealedKeyObject, error) {
-		return &secboot_tpm2.SealedKeyObject{}, nil
+	restore = s.mockSbtpmNewKeyDataFromSealedKeyObjectFile(func(path string) (*secboot.KeyData, error) {
+		return &secboot.KeyData{}, nil
 	})
 	defer restore()
 
-	restore = s.mockSbtpmSealedKeyObjectUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyObject, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile) error {
+	restore = s.mockSbtpmNewSealedKeyData(func(k *secboot.KeyData) (*secboot_tpm2.SealedKeyData, error) {
+		return &secboot_tpm2.SealedKeyData{}, nil
+	})
+	defer restore()
+
+	restore = s.mockSbtpmSealedKeyDataUpdatePCRProtectionPolicy(func(k *secboot_tpm2.SealedKeyData, tpm *secboot_tpm2.Connection, authKey secboot.PrimaryKey, profile *secboot_tpm2.PCRProtectionProfile, policyVersionOption secboot_tpm2.PCRPolicyVersionOption) error {
 		return nil
 	})
 	defer restore()
 
-	restore = s.mockSbtpmSealedKeyObjectWriteAtomic(func(k *secboot_tpm2.SealedKeyObject, w secboot.KeyDataWriter) error {
+	restore = s.mockSbKeyDataWriteAtomic(func(k *secboot.KeyData, w secboot.KeyDataWriter) error {
 		return nil
 	})
 	defer restore()
