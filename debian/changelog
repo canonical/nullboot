@@ -1,3 +1,10 @@
+nullboot (0.6.1-0ubuntu1) tenacious; urgency=medium
+
+  [ Gerald Yang ]
+  * Pin goroutine to OS thread when reading the primary key (LP: #2167545)
+
+ -- Dmitrii Kuvaiskii <dmitrii.kuvaiskii@canonical.com>  Fri, 27 Nov 2026 11:40:29 +0500
+
 nullboot (0.6.0-0ubuntu1) stonking; urgency=medium
 
   [ dependabot[bot] ]
